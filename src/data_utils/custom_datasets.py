@@ -46,11 +46,14 @@ def flat_seq(utters, args):
     utters[-1] = utters[-1] + [args.eos_id]
     
     context_len = get_context_len(utters)
-        
-    if context_len > (args.max_len-len(utters[-1])):
-        utter_len = (args.max_len-len(utters[-1])) // (args.max_times-1)
-        utters = [utter[:utter_len] for u, utter in enumerate(utters) if u != len(utters)-1]
-        context_len = get_context_len(utters)
+    
+    if context_len > args.max_len:
+        return None, None
+    
+#     if context_len > (args.max_len-len(utters[-1])):
+#         utter_len = (args.max_len-len(utters[-1])) // (args.max_times-1)
+#         utters = [utter[:utter_len] for u, utter in enumerate(utters) if u != len(utters)-1]
+#         context_len = get_context_len(utters)
 
     trg_spots = (context_len+1, context_len+len(utters[-1])-1)
     utters = list(chain.from_iterable(utters))
@@ -67,7 +70,10 @@ class ERDataset(Dataset):
         self.input_ids = []  # (N, L)
         self.labels = []  # (N, L)
         
+        self.excluded = []
+        
         print(f"Processing {data_prefix} data...")
+        idx = 0
         for d, dialogue in enumerate(tqdm(utters)):
             utter_histories = []
             for u, line in enumerate(dialogue):
@@ -102,12 +108,16 @@ class ERDataset(Dataset):
                     utter_labels = [class_dict[label] for label in utter_labels]
                         
                     input_ids, trg_spots = flat_seq(copy.deepcopy(utter_histories), args)
+                    if input_ids is None:
+                        self.excluded.append(idx)
+                    else:
+                        full_labels = [-1] * len(input_ids)
+                        full_labels[trg_spots[0]:trg_spots[1]] = utter_labels
+
+                        self.labels.append(full_labels)
+                        self.input_ids.append(input_ids)
                     
-                    full_labels = [-1] * len(input_ids)
-                    full_labels[trg_spots[0]:trg_spots[1]] = utter_labels
-                    
-                    self.labels.append(full_labels)
-                    self.input_ids.append(input_ids)
+                    idx += 1
                     
         self.input_ids = torch.LongTensor(self.input_ids)
         self.labels = torch.LongTensor(self.labels)
@@ -137,10 +147,6 @@ class ERDataset(Dataset):
 
         if add_entity_tokens is not None and found is False:
             labels, found = find(tokens, entity_type, add_entity_tokens, labels, found)
-        
-        if found is False:
-#             assert found is True, f"{entity_tokens} or {add_entity_tokens} is not in {tokens} in case {labels}."
-            self.unfit_count += 1
 
         return labels
     
@@ -152,7 +158,10 @@ class APDataset(Dataset):
         self.input_ids = []  # (N, L)
         self.labels = []  # (N, num_actions)
         
+        self.excluded = []
+        
         print(f"Processing {data_prefix} data...")
+        idx = 0
         for d, dialogue in enumerate(tqdm(utters)):
             utter_histories = []
             for u, line in enumerate(dialogue):
@@ -176,10 +185,15 @@ class APDataset(Dataset):
                     
                     assert len(target) == args.class_dict
                     
-                    self.labels.append(target)
-                    
                     input_id, _ = flat_seq(copy.deepcopy(utter_histories), args)
-                    self.input_ids.append(input_id)
+                    
+                    if input_ids is None:
+                        self.excluded.append(idx)
+                    else:
+                        self.input_ids.append(input_id)
+                        self.labels.append(target)
+                        
+                    idx += 1
         
         assert len(self.input_ids) == len(self.labels)
         

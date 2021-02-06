@@ -7,7 +7,7 @@ from torch.utils.data.distributed import DistributedSampler
 from torch import nn
 from torch.nn import functional as F
 from model_utils.models import *
-from data_utils.finetune_dataset import *
+from data_utils.custom_datasets import *
 from metrics import *
 
 import torch
@@ -16,6 +16,7 @@ import os, sys
 import numpy as np
 import argparse
 import json
+import pickle
 import torch.multiprocessing as mp
 
 
@@ -85,7 +86,12 @@ def main(gpu, args):
             patience=args.patience, 
             threshold=args.threshold
         )
-
+        
+        with open(f"{ckpt_dir}/{args.train_name}_excluded.pickle", 'wb') as f:
+            pickle.dump(train_set.excluded, f)
+        with open(f"{ckpt_dir}/{args.valid_name}_excluded.pickle", 'wb') as f:
+            pickle.dump(valid_set.excluded, f)
+            
         if args.gpus > 1:
             train_sampler = DistributedSampler(train_set, num_replicas=args.world_size, rank=args.rank)
         else:

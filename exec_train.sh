@@ -1,8 +1,8 @@
-export MASTER_ADDR=IP_ADDRESS
-export MASTER_PORT=FREE_PORT
+export MASTER_ADDR=192.168.159.61
+export MASTER_PORT=23880
 export OMP_NUM_THREADS=1
 export USE_SIMPLE_THREADED_LEVEL3=1
-export CUDA_VISIBLE_DEVICES=GPU_NUMBERS
+export CUDA_VISIBLE_DEVICES=0
 TOKENIZERS_PARALLELISM=false
 python src/main.py \
     --mode="train" \
@@ -20,11 +20,11 @@ python src/main.py \
     --label_name="label" \
     --entity_dir="entity" \
     --action_dir="action" \
-    --max_len=512 \
-    --max_times=5 \
-    --num_epochs=50 \
-    --batch_size=32 \
-    --num_workers=16 \
+    --max_len=53 \
+    --max_times=1 \
+    --num_epochs=30 \
+    --batch_size=8 \
+    --num_workers=4 \
     --learning_rate=5e-5 \
     --factor=0.1 \
     --max_grad_norm=1.0 \
