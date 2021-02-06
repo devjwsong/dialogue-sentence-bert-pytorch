@@ -31,15 +31,12 @@ def main(gpu, args):
     args.device = torch.device(f"cuda:{gpu}")
     
     # For data setting
-    args.finetune_dir = f"{args.data_dir}/{args.finetune_dir}"
-    if args.task == 'intent detection':
-        args.dataset_dir = f"{args.finetune_dir}/intent/{args.dataset}"
-        args.ckpt_dir = f"{args.ckpt_dir}/intent/{args.dataset}/{args.model_name}"
-    elif args.task == 'entity recognition':
-        args.dataset_dir = f"{args.finetune_dir}/entity/{args.dataset}"
+    args.processed_dir = f"{args.data_dir}/{args.processed_dir}"
+    if args.task == 'entity recognition':
+        args.dataset_dir = f"{args.processed_dir}/entity/{args.dataset}"
         args.ckpt_dir = f"{args.ckpt_dir}/entity/{args.dataset}/{args.model_name}"
     elif args.task == 'action prediction':
-        args.dataset_dir = f"{args.finetune_dir}/action/{args.dataset}"
+        args.dataset_dir = f"{args.processed_dir}/action/{args.dataset}"
         args.ckpt_dir = f"{args.ckpt_dir}/action/{args.dataset}/{args.model_name}"
 
     assert os.path.isdir(args.dataset_dir)
@@ -94,15 +91,13 @@ def main(gpu, args):
         else:
             train_sampler = None
 
-        train_loader = DataLoader(train_set, batch_size=args.batch_size, shuffle=True if train_sampler is None else False, sampler=train_sampler, num_workers=args.num_workers, pin_memory=True)
-        valid_loader = DataLoader(valid_set, batch_size=args.batch_size, shuffle=True, num_workers=args.num_workers, pin_memory=True)
+        train_loader = DataLoader(train_set, batch_size=args.batch_size, shuffle=False, sampler=train_sampler, num_workers=args.num_workers, pin_memory=True)
+        valid_loader = DataLoader(valid_set, batch_size=args.batch_size, shuffle=False, num_workers=args.num_workers, pin_memory=True)
     
         writer = SummaryWriter(args.ckpt_dir)
         
         # Train functions
-        if args.task == 'intent detection':
-            train_id(args, model, loss_func, optim, scheduler, train_loader, valid_loader, class_dict, writer)
-        elif args.task == 'entity recognition':
+        if args.task == 'entity recognition':
             train_er(args, model, loss_func, optim, scheduler, train_loader, valid_loader, class_dict, writer)
         elif args.task == 'action prediction':
             train_ap(args, model, loss_func, optim, scheduler, train_loader, valid_loader, writer)
@@ -110,135 +105,26 @@ def main(gpu, args):
         writer.close()
         
     elif args.mode == 'test':
-        if args.task == 'intent detection':
-            test_set = IDDataset(args, args.test_prefix, class_dict, tokenizer)
-        elif args.task == 'entity recognition':
+        if args.task == 'entity recognition':
             test_set = ERDataset(args, args.test_prefix, class_dict, tokenizer)
         elif args.task == 'action prediction':
             test_set = APDataset(args, args.test_prefix, class_dict, tokenizer)
 
-        test_loader = DataLoader(test_set, batch_size=args.batch_size, shuffle=True, num_workers=args.num_workers, pin_memory=True)
+        test_loader = DataLoader(test_set, batch_size=args.batch_size, shuffle=False, num_workers=args.num_workers, pin_memory=True)
         model.load_state_dict(torch.load(f"{args.ckpt_dir}/{args.ckpt_name}.ckpt"))
         
         # Test functions
-        if args.task == 'intent detection':
-            if 'oos' in class_dict:
-                out_id = class_dict['oos']
-            else:
-                out_id = None
-            _, test_scores = eval_id(args, model, test_loader, out_id=out_id, loss_func=None)
-        elif args.task == 'entity recognition':
+        if args.task == 'entity recognition':
             _, test_scores = eval_er(args, model, test_loader, class_dict, loss_func=None)
         elif args.task == 'action prediction':
             _, test_scores = eval_ap(args, model, test_loader, loss_func=None)
             
         print("Test results")
         print(test_scores)
-
         
-def train_id(args, model, loss_func, optim, scheduler, train_loader, valid_loader, class_dict, writer):
-    print("Finetuning with Intent Detection.")
-    best_crit = 0.0
-
-    for epoch in range(1, args.num_epochs+1):
-        print("#" * 50 + f"Epoch {epoch}" + "#"*50)
-        model.train()
-
-        train_losses = []
-        train_preds = []
-        train_trues = []
-
-        for batch in tqdm(train_loader):      
-            optim.zero_grad()
-            batch_input_ids, batch_labels = batch
-            batch_input_ids, batch_labels = \
-                batch_input_ids.to(args.device), batch_labels.to(args.device)
-            batch_masks = (batch_input_ids != args.pad_id).float()
-
-            outputs = model(batch_input_ids, padding_masks=batch_masks)  # (B, C)
-
-            loss = loss_func(outputs, batch_labels)  # ()
-
-            loss.backward()
-            nn.utils.clip_grad_norm_(model.parameters(), args.max_grad_norm)
-            optim.step()
-
-            train_losses.append(loss.item())
-            _, preds = torch.max(outputs, dim=-1)
-            train_preds += preds.tolist()
-            train_trues += batch_labels.tolist()
-
-        train_loss = np.mean(train_losses)
-        print(f"Train loss: {train_loss}")
-
-        if 'oos' in class_dict:
-            out_id = class_dict['oos']
-        else:
-            out_id = None
-
-        train_scores = intent_scores(train_preds, train_trues, out_id)
-        train_log_list = make_log_list('Train', train_scores)
-        print(" || ".join(train_log_list))
-
-        if args.gpus == 1 or (args.rank % args.gpus == 0):
-            print("Validation starts.")
-            valid_loss, valid_scores = eval_id(args, model, valid_loader, out_id=out_id, loss_func=loss_func)
-            crit_metric = next(iter(valid_scores))
-            valid_crit = valid_scores[crit_metric]
-
-            scheduler.step(valid_crit)
-        
-            if valid_crit > best_crit:
-                best_crit = valid_crit
-                train_crit = train_scores[crit_metric]
-
-                ckpt_name = f"{args.model_name}_intent_epoch{epoch}_{round(train_crit, 4)}_{round(valid_crit, 4)}.ckpt"
-                torch.save(model.state_dict(), f"{args.ckpt_dir}/{ckpt_name}")
-                print("*"*10 + "Current best model saved." + "*"*10)
-
-            print(f"Valid loss: {valid_loss}")
-            print(f"Best {crit_metric}: {best_crit}")
-            valid_log_list = make_log_list('Valid', valid_scores)
-            print(" || ".join(valid_log_list))
-
-            write_summaries(writer, epoch, train_loss, valid_loss, train_scores, valid_scores)
-
-    print(f"Finetuning for Intent Detection with {args.model_name} finished.")
-    
-
-def eval_id(args, model, eval_loader, out_id=None, loss_func=None):
-    print("Evaluating with Intent Detection.")
-    model.eval()
-
-    eval_losses = []
-    eval_preds = []
-    eval_trues = []
-
-    with torch.no_grad():
-        for batch in tqdm(eval_loader):
-            batch_input_ids, batch_labels = batch
-            batch_input_ids, batch_labels = \
-                batch_input_ids.to(args.device), batch_labels.to(args.device)
-            batch_masks = (batch_input_ids != args.pad_id).float()
-
-            outputs = model(batch_input_ids, padding_masks=batch_masks)  # (B, C)
-
-            if loss_func is not None:
-                loss = loss_func(outputs, batch_labels)  # ()
-                eval_losses.append(loss.item())
-
-            _, preds = torch.max(outputs, dim=-1)
-            eval_preds += preds.tolist()
-            eval_trues += batch_labels.tolist()
-
-        eval_loss = np.mean(eval_losses) if len(eval_losses) > 0 else 0.0
-        eval_scores = intent_scores(eval_preds, eval_trues, out_id=out_id)
-
-    return eval_loss, eval_scores
-
 
 def train_er(args, model, loss_func, optim, scheduler, train_loader, valid_loader, class_dict, writer):
-    print("Finetuning with Entity Recognition.")
+    print("Training with Entity Recognition.")
     best_crit = 0.0
 
     for epoch in range(1, args.num_epochs+1):
@@ -307,7 +193,7 @@ def train_er(args, model, loss_func, optim, scheduler, train_loader, valid_loade
 
             write_summaries(writer, epoch, train_loss, valid_loss, train_scores, valid_scores)
             
-    print(f"Finetuning for Entity Recognition with {args.model_name} finished.")
+    print(f"Training for Entity Recognition with {args.model_name} finished.")
 
         
 def eval_er(args, model, eval_loader, class_dict, loss_func=None):
@@ -350,7 +236,7 @@ def eval_er(args, model, eval_loader, class_dict, loss_func=None):
 
 
 def train_ap(args, model, loss_func, optim, scheduler, train_loader, valid_loader, writer):
-    print("Finetuning with Action Prediction.")
+    print("Training with Action Prediction.")
     best_crit = 0.0
 
     for epoch in range(1, args.num_epochs+1):
@@ -411,7 +297,7 @@ def train_ap(args, model, loss_func, optim, scheduler, train_loader, valid_loade
 
             write_summaries(writer, epoch, train_loss, valid_loss, train_scores, valid_scores)
 
-    print(f"Finetuning for Action Prediction with {args.model_name} finished.")
+    print(f"Training for Action Prediction with {args.model_name} finished.")
 
     
 def eval_ap(args, model, eval_loader, loss_func=None):
@@ -482,16 +368,14 @@ if __name__=='__main__':
     parser.add_argument('--ckpt_dir', required=True, type=str, default="saved_models", help="The directory path for saved checkpoints.")
     parser.add_argument('--ckpt_name', required=False, type=str, help="Checkpoint file name.")
     parser.add_argument('--data_dir', required=True, type=str, default="data", help="The parent directory path for data files.")
-    parser.add_argument('--finetune_dir', required=True, type=str, default="finetune", help="The directory path to finetuning data files.")
+    parser.add_argument('--processed_dir', required=True, type=str, default="processed", help="The directory path to finetuning data files.")
     parser.add_argument('--class_dict_name', required=True, type=str, default="class_dict", help="The name of class dictionary json file.")
     parser.add_argument('--train_prefix', required=True, type=str, default="train", help="The prefix of file name related to train set.")
     parser.add_argument('--valid_prefix', required=True, type=str, default="valid", help="The prefix of file name related to valid set.")
     parser.add_argument('--test_prefix', required=True, type=str, default="test", help="The prefix of file name related to test set.")
     parser.add_argument('--utter_name', required=True, type=str, default="utter", help="The indication for utterance files' name.")
     parser.add_argument('--label_name', required=True, type=str, default="label", help="The indication for label files' name.")
-    parser.add_argument('--intent_dir', required=True, type=str, default="intent", help="The directory path for intent detection data files.")
     parser.add_argument('--entity_dir', required=True, type=str, default="entity", help="The directory path for entity recognition data files.")
-    parser.add_argument('--state_dir', required=True, type=str, default="state", help="The directory path for dialog state tracking data files.")
     parser.add_argument('--action_dir', required=True, type=str, default="action", help="The directory path for action prediction data files.")
     parser.add_argument('--max_len', required=True, type=int, default=512, help="The maximum sequence length including all dialog contexts.")
     parser.add_argument('--max_times', required=True, type=int, default=5, help="The maximum number of time steps.")
@@ -513,12 +397,11 @@ if __name__=='__main__':
     args = parser.parse_args()
         
     assert args.mode == 'train' or args.mode == 'test', "Please specify a correct mode."
-    assert args.task == 'intent detection'\
-        or args.task == 'entity recognition'\
+    assert args.task == 'entity recognition'\
         or args.task == 'action prediction', \
         "You must specify a correct finetune task in finetuning mode."
-    assert args.model_name is not None, "You must specify the pre-trained model name when fine-tuning."
-    assert args.dataset is not None, "You must specify the dataset name in finetuning mode."
+    assert args.model_name is not None, "You must specify the pre-trained model."
+    assert args.dataset is not None, "You must specify the dataset name."
     
     print("#"*50 + "Running spec" + "#"*50)
     print(f"Mode: {args.mode}")

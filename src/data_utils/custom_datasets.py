@@ -58,37 +58,6 @@ def flat_seq(utters, args):
     assert len(utters) <= args.max_len
     
     return pad_seq(utters, args.max_len, args.pad_id, args.eos_id), trg_spots
-
-
-class IDDataset(Dataset):
-    def __init__(self, args, data_prefix, class_dict, tokenizer):
-        self.input_ids = []
-        self.labels = []
-        
-        utters, labels = load_data(args.dataset_dir, data_prefix, args.utter_name, args.label_name)  # (N), (N)
-        
-        print(f"Processing {data_prefix} data...")
-        for u, utter in enumerate(tqdm(utters)):
-            label = labels[u]
-            tokens = tokenizer.tokenize(utter)
-            token_ids = [tokenizer.get_vocab()[token] for token in tokens]
-            token_ids = [args.bos_id, args.speaker1_id] + token_ids + [args.eos_id]
-            token_ids = pad_seq(token_ids, args.max_len, args.pad_id, args.eos_id)
-            label_id = class_dict[label]
-            
-            self.input_ids.append(token_ids)
-            self.labels.append(label_id)
-                
-        assert len(self.input_ids) == len(self.labels)
-        
-        self.input_ids = torch.LongTensor(self.input_ids)
-        self.labels = torch.LongTensor(self.labels)
-        
-    def __len__(self):
-        return self.input_ids.shape[0]
-        
-    def __getitem__(self, idx):
-        return self.input_ids[idx], self.labels[idx]
     
 
 class ERDataset(Dataset):
@@ -97,9 +66,6 @@ class ERDataset(Dataset):
         
         self.input_ids = []  # (N, L)
         self.labels = []  # (N, L)
-        
-        # temp
-        self.unfit_count = 0
         
         print(f"Processing {data_prefix} data...")
         for d, dialogue in enumerate(tqdm(utters)):
@@ -145,9 +111,6 @@ class ERDataset(Dataset):
                     
         self.input_ids = torch.LongTensor(self.input_ids)
         self.labels = torch.LongTensor(self.labels)
-        
-        print("Unfit count")
-        print(self.unfit_count)
     
     def __len__(self):
         return self.input_ids.shape[0]
@@ -180,41 +143,7 @@ class ERDataset(Dataset):
             self.unfit_count += 1
 
         return labels
-        
-
-# class DSTDataset(Dataset):
-#     def __init__(self, args, data_prefix, class_dict, tokenizer):
-#         utters, labels = load_data(dataset_dir, data_prefix, args.utter_name, args.label_name)  # (N, T, L), (N, T, num_slots)
-        
-#         self.input_ids = []  # (N, L)
-#         self.labels = []  # (N, num_slots)
-        
-#         print(f"Processing {data_prefix} data...")
-#         for d, dialogue in enumerate(tqdm(utters)):
-#             utter_histories = []
-#             for u, utter in enumerate(dialogue):
-#                 utter_histories.append(utter)
-#                 if len(utter_histories) > args.max_times:
-#                     utter_histories = utter_histories[1:]
-                    
-#                 if len(labels[d][u]) > 0:
-#                     state_tuples = labels[d][u]
-#                     states = [0] * args.num_slots
-#                     for state_tuple in state_tuples:
-#                         states[state_tuple[0]] = state_tuple[1]
-#                     self.labels.append(states)
-                    
-#                     input_id, trg_spot = flat_seq(copy.deepcopy(utter_histories), args)
-#                     self.input_ids.append(input_id)
-        
-#         self.input_ids = torch.LongTensor(self.input_ids)
-#         self.labels = torch.LongTensor(self.labels)
     
-#     def __len__(self):
-#         return self.input_ids.shape[0]
-        
-#     def __getitem__(self, idx):
-#         return self.input_ids[idx], self.labels[idx]
 
 class APDataset(Dataset):
     def __init__(self, args, data_prefix, class_dict, tokenizer):

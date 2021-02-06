@@ -5,7 +5,7 @@ export USE_SIMPLE_THREADED_LEVEL3=1
 export CUDA_VISIBLE_DEVICES=GPU_NUMBERS
 TOKENIZERS_PARALLELISM=false
 python src/main.py \
-    --mode="train" \
+    --mode="test" \
     --task="entity recognition" \
     --dataset="multiwoz" \
     --model_name="bert-base-uncased" \
@@ -31,6 +31,3 @@ python src/main.py \
     --patience=3 \
     --threshold=1e-3 \
     --sigmoid_threshold=0.5 \
-    --nodes=1 \
-    --gpus=1 \
-    --rank=0
