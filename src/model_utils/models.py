@@ -45,10 +45,10 @@ class PretrainModel(nn.Module):
         super(PretrainModel, self).__init__() 
         
         # Random seed fixing
-        np.random.seed(0)
-        torch.manual_seed(0)
-        torch.cuda.manual_seed_all(0)
-        random.seed(0)
+        np.random.seed(args.model_seed)
+        torch.manual_seed(args.model_seed)
+        torch.cuda.manual_seed_all(args.model_seed)
+        random.seed(args.model_seed)
         
         self.decoder_type = args.decoder
         

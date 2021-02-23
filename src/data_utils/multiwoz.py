@@ -3,42 +3,28 @@ from tqdm import tqdm
 import os
 import json
 import pickle
+import random
+random.seed(0)
 
 
-def process_data(args, finetune_dir):
+def process_data(args, processed_dir):
     data_dir = f"{args.data_dir}/{args.raw_dir}/MultiWOZ2_3"
     assert os.path.isdir(data_dir), "Please check the raw data directory path."
-    
-#     # For dialogue state tracking
-#     state_dir = f"{finetune_dir}/{args.state_dir}/multiwoz"
-#     if not os.path.isdir(state_dir):
-#         os.makedirs(state_dir)
 
     # For entity recogntion
-    entity_dir = f"{finetune_dir}/{args.entity_dir}/multiwoz"
+    entity_dir = f"{processed_dir}/{args.entity_dir}/multiwoz"
     if not os.path.isdir(entity_dir):
         os.makedirs(entity_dir)
         
     # For action prediction
-    action_dir = f"{finetune_dir}/{args.action_dir}/multiwoz"
+    action_dir = f"{processed_dir}/{args.action_dir}/multiwoz"
     if not os.path.isdir(action_dir):
         os.makedirs(action_dir)
-    
-#     state_class_dict = {}
+
     entity_class_dict = {'O': 0}
     action_class_dict = {}
-    
-#     print("Loading & processing ontologies...")
-#     with open(f"{data_dir}/ontology.json", 'r') as f:
-#         onts = json.load(f)
-    
-#     for pair, value_list in tqdm(onts.items()):
-#         if pair not in state_class_dict:
-#             state_class_dict[pair] = [len(state_class_dict), {args.none_value: 0}]
-        
-#         for i, value in enumerate(value_list):
-#             if value not in state_class_dict[pair][1]:
-#                 state_class_dict[pair][1][value] = len(state_class_dict[pair][1])
+
+    domain2idxs = {}
     
     print("Loading dialogue data...")
     with open(f"{data_dir}/data.json", 'r') as f:
@@ -46,12 +32,12 @@ def process_data(args, finetune_dir):
    
     print("Processing dialogues...")
     utter_dialogues = []
-#     state_dialogues = []
     entity_dialogues = []
     action_dialogues = []
     for dialogue_id, dialogue in tqdm(data.items()):
+        domains = [k for k, v in dialogue['goal'].items() if k != 'topic' and k != 'message' and len(v) > 0]
+        
         utter_dialogue = []
-#         state_dialogue = []
         entity_dialogue = []
         action_dialogue = []
         
@@ -61,12 +47,10 @@ def process_data(args, finetune_dir):
             span_info = turn['span_info']
             if len(metadata) == 0:  # User
                 speaker = 'speaker1'
-#                 state_ids = []
                 entity_list, entity_class_dict = find_entities(span_info, entity_class_dict)
                 action_list = []
             else:  # System
                 speaker = 'speaker2'
-#                 state_ids = find_states(metadata, state_class_dict, args.none_value)
                 entity_list = []
                 action_list, action_class_dict = find_actions(dialog_act, action_class_dict)
                 
@@ -77,49 +61,68 @@ def process_data(args, finetune_dir):
             utter = turn['text'].replace('\n', '')
             
             utter_dialogue.append(f"{speaker}:{utter}")
-#             state_dialogue.append(state_list)
             entity_dialogue.append(entity_list)
             action_dialogue.append(action_list)
-        
-#         assert len(utter_dialogue) == len(state_dialogue)
+
         assert len(utter_dialogue) == len(entity_dialogue)
         assert len(utter_dialogue) == len(action_dialogue)
         
         utter_dialogues.append(utter_dialogue)
-#         state_dialogues.append(state_dialogue)
         entity_dialogues.append(entity_dialogue)
         action_dialogues.append(action_dialogue)
+        
+        idx = len(utter_dialogues)-1
+        domain = random.sample(domains, 1)[0]
+        if domain not in domain2idxs:
+            domain2idxs[domain] = []
+        domain2idxs[domain].append(idx)
     
-#     assert len(utter_dialogues) == len(state_dialogues)
     assert len(utter_dialogues) == len(entity_dialogues)
     assert len(utter_dialogues) == len(action_dialogues)
     
+    num_total_dialogs = 0
+    for k, v in domain2idxs.items():
+        num_total_dialogs += len(v)
+        
+        print(f"{k}: {len(v)}")
+        
+    assert num_total_dialogs == len(utter_dialogues)
+    
+    train_utter_dialogs = []
+    valid_utter_dialogs = []
+    test_utter_dialogs = []
+    train_entity_dialogs = []
+    valid_entity_dialogs = []
+    test_entity_dialogs = []
+    train_action_dialogs = []
+    valid_action_dialogs = []
+    test_action_dialogs = []
+    
     print("Splitting data...")
-    train_utter_dialogues, valid_utter_dialogues, test_utter_dialogues = \
-        split_data(utter_dialogues, args.train_frac, args.valid_frac)
-#     train_state_dialogues, valid_state_dialogues, test_state_dialogues = \
-#         split_data(state_dialogues, args.train_frac, args.valid_frac)
-    train_entity_dialogues, valid_entity_dialogues, test_entity_dialogues = \
-        split_data(entity_dialogues, args.train_frac, args.valid_frac)
-    train_action_dialogues, valid_action_dialogues, test_action_dialogues = \
-        split_data(action_dialogues, args.train_frac, args.valid_frac)
+    for domain, idxs in domain2idxs.items():
+        train_idxs, valid_idxs, test_idxs = split_data(idxs, args.train_frac, args.valid_frac)
+        
+        train_utter_dialogs += [utter_dialogues[idx] for idx in train_idxs]
+        valid_utter_dialogs += [utter_dialogues[idx] for idx in valid_idxs]
+        test_utter_dialogs += [utter_dialogues[idx] for idx in test_idxs]
+        
+        train_entity_dialogs += [entity_dialogues[idx] for idx in train_idxs]
+        valid_entity_dialogs += [entity_dialogues[idx] for idx in valid_idxs]
+        test_entity_dialogs += [entity_dialogues[idx] for idx in test_idxs]
+        
+        train_action_dialogs += [action_dialogues[idx] for idx in train_idxs]
+        valid_action_dialogs += [action_dialogues[idx] for idx in valid_idxs]
+        test_action_dialogs += [action_dialogues[idx] for idx in test_idxs]
     
     print("Now saving data...")
-#     save_files("Dialogue State Tracking", state_dir, args.train_prefix, train_utter_dialogues, train_state_dialogues, args)
-    save_files("Entity Recognition", entity_dir, args.train_prefix, train_utter_dialogues, train_entity_dialogues, args)
-    save_files("Action Prediction", action_dir, args.train_prefix, train_utter_dialogues, train_action_dialogues, args)
-    
-#     save_files("Dialogue State Tracking", state_dir, args.valid_prefix, valid_utter_dialogues, valid_state_dialogues, args)
-    save_files("Entity Recognition", entity_dir, args.valid_prefix, valid_utter_dialogues, valid_entity_dialogues, args)
-    save_files("Action Prediction", action_dir, args.valid_prefix, valid_utter_dialogues, valid_action_dialogues, args)
-    
-#     save_files("Dialogue State Tracking", state_dir, args.test_prefix, test_utter_dialogues, test_state_dialogues, args)
-    save_files("Entity Recognition", entity_dir, args.test_prefix, test_utter_dialogues, test_entity_dialogues, args)
-    save_files("Action Prediction", action_dir, args.test_prefix, test_utter_dialogues, test_action_dialogues, args)
-    
-#     print("Saving state class dictionary...")
-#     with open(f"{state_dir}/{args.class_dict_name}.json", 'w') as f:
-#         json.dump(state_class_dict, f)
+    save_files("Entity Recognition", entity_dir, args.train_prefix, train_utter_dialogs, train_entity_dialogs, args)
+    save_files("Action Prediction", action_dir, args.train_prefix, train_utter_dialogs, train_action_dialogs, args)
+
+    save_files("Entity Recognition", entity_dir, args.valid_prefix, valid_utter_dialogs, valid_entity_dialogs, args)
+    save_files("Action Prediction", action_dir, args.valid_prefix, valid_utter_dialogs, valid_action_dialogs, args)
+
+    save_files("Entity Recognition", entity_dir, args.test_prefix, test_utter_dialogs, test_entity_dialogs, args)
+    save_files("Action Prediction", action_dir, args.test_prefix, test_utter_dialogs, test_action_dialogs, args)
 
     print("Saving entity class dictionary...")
     with open(f"{entity_dir}/{args.class_dict_name}.json", 'w') as f:
@@ -129,27 +132,27 @@ def process_data(args, finetune_dir):
     with open(f"{action_dir}/{args.class_dict_name}.json", 'w') as f:
         json.dump(action_class_dict, f)
     
-    num_train_utters = count_utters(train_utter_dialogues)
-    num_valid_utters = count_utters(valid_utter_dialogues)
-    num_test_utters = count_utters(test_utter_dialogues)
+    num_train_utters = count_utters(train_utter_dialogs)
+    num_valid_utters = count_utters(valid_utter_dialogs)
+    num_test_utters = count_utters(test_utter_dialogs)
     
     print("<Data Anaysis>")
     
     print("Task: Entity Recognition")
-    print(f"# of train dialogues: {len(train_utter_dialogues)}")
+    print(f"# of train dialogues: {len(train_utter_dialogs)}")
     print(f"# of train utterances: {num_train_utters}")
-    print(f"# of valid dialogues: {len(valid_utter_dialogues)}")
+    print(f"# of valid dialogues: {len(valid_utter_dialogs)}")
     print(f"# of valid utterances: {num_valid_utters}")
-    print(f"# of test dialogues: {len(test_utter_dialogues)}")
+    print(f"# of test dialogues: {len(test_utter_dialogs)}")
     print(f"# of test utterances: {num_test_utters}")
     print(f"# of classes: {len(entity_class_dict)}")
     
     print("Task: Action Prediction")
-    print(f"# of train dialogues: {len(train_utter_dialogues)}")
+    print(f"# of train dialogues: {len(train_utter_dialogs)}")
     print(f"# of train utterances: {num_train_utters}")
-    print(f"# of valid dialogues: {len(valid_utter_dialogues)}")
+    print(f"# of valid dialogues: {len(valid_utter_dialogs)}")
     print(f"# of valid utterances: {num_valid_utters}")
-    print(f"# of test dialogues: {len(test_utter_dialogues)}")
+    print(f"# of test dialogues: {len(test_utter_dialogs)}")
     print(f"# of test utterances: {num_test_utters}")
     print(f"# of classes: {len(action_class_dict)}")
     
@@ -174,31 +177,6 @@ def find_entities(span_info, entity_class_dict):
         
     return entity_list, entity_class_dict
 
-    
-# def find_states(metadata, state_class_dict, none_value):
-#     state_ids = []
-#     for domain, info in metadata.items():
-#         main = info['book']
-#         sub = info['semi']
-        
-#         main.update(sub)
-        
-#         for slot_type, slot_value in main.items():
-#             if slot_type != 'booked':
-#                 if f"{domain}-book {slot_type}" in state_class_dict:
-#                     pair_name = f"{domain}-book {slot_type}"
-#                 elif f"{domain}-{slot_type}" in state_class_dict:
-#                     pair_name = f"{domain}-{slot_type}"
-#                 else:
-#                     continue
-                    
-#                 if slot_value not in state_class_dict[pair_name][1]:
-#                     state_ids.append((state_class_dict[pair_name][0], state_class_dict[pair_name][1][none_value]))
-#                 else:
-#                     state_ids.append((state_class_dict[pair_name][0], state_class_dict[pair_name][1][slot_value]))
-                    
-#     return state_ids
-
 
 def find_actions(dialog_act, action_class_dict):
     action_list = []
@@ -211,15 +189,17 @@ def find_actions(dialog_act, action_class_dict):
     return list(set(action_list)), action_class_dict
 
 
-def split_data(dialogues, train_frac, valid_frac):
-    train_dialogues = dialogues[:int(len(dialogues) * train_frac)]
-    remained_dialogues = dialogues[int(len(dialogues) * train_frac):]
+def split_data(idxs, train_frac, valid_frac):
+    random.seed(111)
+    random.shuffle(idxs)
+    train_idxs = idxs[:int(len(idxs) * train_frac)]
+    remained_idxs = idxs[int(len(idxs) * train_frac):]
     
     f = valid_frac / (1.0-train_frac)
-    valid_dialogues = remained_dialogues[:int(len(remained_dialogues) * f)]
-    test_dialogues = remained_dialogues[int(len(remained_dialogues) * f):]
+    valid_idxs = remained_idxs[:int(len(remained_idxs) * f)]
+    test_idxs = remained_idxs[int(len(remained_idxs) * f):]
     
-    return train_dialogues, valid_dialogues, test_dialogues
+    return train_idxs, valid_idxs, test_idxs
 
 
 def save_files(task_name, save_dir, prefix, utter_dialogues, label_dialogues, args):

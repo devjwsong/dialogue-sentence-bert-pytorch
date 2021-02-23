@@ -5,26 +5,20 @@ import json
 import pickle
 
 
-def process_data(args, finetune_dir):
+def process_data(args, processed_dir):
     data_dir = f"{args.data_dir}/{args.raw_dir}/sim"
     assert os.path.isdir(data_dir), "Please check the raw data directory path."
-    
-#     # For dialogue state tracking
-#     state_dir = f"{finetune_dir}/{args.state_dir}/sim"
-#     if not os.path.isdir(state_dir):
-#         os.makedirs(state_dir)
 
     # For entity recognition
-    entity_dir = f"{finetune_dir}/{args.entity_dir}/sim"
+    entity_dir = f"{processed_dir}/{args.entity_dir}/sim"
     if not os.path.isdir(entity_dir):
         os.makedirs(entity_dir)
         
     # For action prediction
-    action_dir = f"{finetune_dir}/{args.action_dir}/sim"
+    action_dir = f"{processed_dir}/{args.action_dir}/sim"
     if not os.path.isdir(action_dir):
         os.makedirs(action_dir)
-    
-#     state_class_dict = {}
+
     entity_class_dict = {'O': 0}
     action_class_dict = {}
     
@@ -37,8 +31,6 @@ def process_data(args, finetune_dir):
     num_test_utters = 0
     for data_type in data_types:
         print(f"Processing {data_type} set...")
-#         utter_dialogues, state_dialogues, action_dialogues, state_class_dict, action_class_dict =\
-#             load_dialogues(data_dir, data_type, state_class_dict, action_class_dict, args, tokenizer)
         utter_dialogues, entity_dialogues, action_dialogues, entity_class_dict, action_class_dict =\
             load_dialogues(data_dir, data_type, entity_class_dict, action_class_dict, args)
         
@@ -54,14 +46,9 @@ def process_data(args, finetune_dir):
             num_test_dialogues = len(utter_dialogues)
             num_test_utters = count_utters(utter_dialogues)
             prefix = data_type
-        
-#         save_files("Dialogue State Tracking", state_dir, prefix, utter_dialogues, state_dialogues, args)
+
         save_files("Entity Recognition", entity_dir, prefix, utter_dialogues, entity_dialogues, args)
         save_files("Action Prediction", action_dir, prefix, utter_dialogues, action_dialogues, args)
-        
-#     print("Saving state class dictionary...")
-#     with open(f"{state_dir}/{args.class_dict_name}.json", 'w') as f:
-#         json.dump(state_class_dict, f)
 
     print("Saving entity class dictionary...")
     with open(f"{entity_dir}/{args.class_dict_name}.json", 'w') as f:
@@ -94,10 +81,8 @@ def process_data(args, finetune_dir):
     print("Done.")
 
     
-# def load_dialogues(data_dir, data_type, state_class_dict, action_class_dict, args):
 def load_dialogues(data_dir, data_type, entity_class_dict, action_class_dict, args):
     utter_dialogues = []
-#     state_dialogues = []
     entity_dialogues = []
     action_dialogues = []
     
@@ -110,7 +95,6 @@ def load_dialogues(data_dir, data_type, entity_class_dict, action_class_dict, ar
             turns = dialogue['turns']
 
             utter_dialogue = []
-#             state_dialogue = []
             entity_dialogue = []
             action_dialogue = []
             for t, turn in enumerate(turns):
@@ -121,59 +105,34 @@ def load_dialogues(data_dir, data_type, entity_class_dict, action_class_dict, ar
                     utter_dialogue.append(f"speaker2:{sys_utter}")
                     
                     action_list, action_class_dict = find_actions(system_acts, action_class_dict)
-                    
-#                     state_dialogue.append([])
+            
                     entity_dialogue.append([])
                     action_dialogue.append([])
                     if t > 0:
                         action_dialogue[len(utter_dialogue)-2] = action_list
                 
                 usr_utter = turn['user_utterance']['text']
-#                 dialogue_state = turn['dialogue_state']
                 slots = turn['user_utterance']['slots']
                 tokens = turn['user_utterance']['tokens']
                 
                 utter_dialogue.append(f"speaker1:{usr_utter}")
                 
-#                 state_ids, state_class_dict = find_states(domain, dialogue_state, state_class_dict, args.none_value)
-#                 state_dialogue.append(state_ids)
                 entity_list, entity_class_dict = find_entities(domain, slots, tokens, entity_class_dict)
                 entity_dialogue.append(entity_list)
                 action_dialogue.append([])
             
-#             assert len(utter_dialogue) == len(state_dialogue)
             assert len(utter_dialogue) == len(entity_dialogue)
             assert len(utter_dialogue) == len(action_dialogue)
             
             utter_dialogues.append(utter_dialogue)
-#             state_dialogues.append(state_dialogue)
             entity_dialogues.append(entity_dialogue)
             action_dialogues.append(action_dialogue)
             
-#     assert len(utter_dialogues) == len(state_dialogues)
     assert len(utter_dialogues) == len(entity_dialogues)
     assert len(utter_dialogues) == len(action_dialogues)
             
-#     return utter_dialogues, state_dialogues, action_dialogues, state_class_dict, action_class_dict
     return utter_dialogues, entity_dialogues, action_dialogues, entity_class_dict, action_class_dict
-    
-    
-# def find_states(domain, dialogue_state, state_class_dict, none_value):
-#     state_ids = []
-    
-#     for state in dialogue_state:
-#         slot_type = f"{domain}-{state['slot']}"
-#         slot_value = state['value']
-        
-#         if slot_type not in state_class_dict:
-#             state_class_dict[slot_type] = [len(state_class_dict), {none_value: 0}]
-        
-#         if slot_value not in state_class_dict[slot_type][1]:
-#             state_class_dict[slot_type][1][slot_value] = len(state_class_dict[slot_type][1])
-            
-#         state_ids.append((state_class_dict[slot_type][0], state_class_dict[slot_type][1][slot_value]))
-    
-#     return state_ids, state_class_dict
+
 
 def find_entities(domain, slots, tokens, entity_class_dict):
     entity_list = []

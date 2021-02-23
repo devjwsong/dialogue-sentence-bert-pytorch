@@ -1,11 +1,12 @@
 from tqdm import tqdm
-from data_utils import multiwoz, taskmaster2, dstc2, sim
+from data_utils import multiwoz, taskmaster3, dstc2, sim
 
 import argparse
 import os
 
 
-data_list = ["multiwoz", "taskmaster2", "sim", "dstc2"]
+# data_list = ["multiwoz", "taskmaster3", "dstc2", "sim"]
+data_list = ['multiwoz']
 
 
 def process_data(args, processed_dir):
@@ -19,8 +20,8 @@ def process_data(args, processed_dir):
         
         if data_name == 'multiwoz':
             multiwoz.process_data(args, processed_dir)
-        elif data_name == 'taskmaster2':
-            taskmaster2.process_data(args, processed_dir)
+        elif data_name == 'taskmaster3':
+            taskmaster3.process_data(args, processed_dir)
         elif data_name == 'dstc2':
             dstc2.process_data(args, processed_dir)
         elif data_name == 'sim':
