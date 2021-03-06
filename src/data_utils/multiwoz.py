@@ -11,15 +11,9 @@ def process_data(args, processed_dir):
     data_dir = f"{args.data_dir}/{args.raw_dir}/MultiWOZ2_3"
     assert os.path.isdir(data_dir), "Please check the raw data directory path."
 
-    # For entity recogntion
-    entity_dir = f"{processed_dir}/{args.entity_dir}/multiwoz"
-    if not os.path.isdir(entity_dir):
-        os.makedirs(entity_dir)
-        
-    # For action prediction
-    action_dir = f"{processed_dir}/{args.action_dir}/multiwoz"
-    if not os.path.isdir(action_dir):
-        os.makedirs(action_dir)
+    processed_dir = f"{processed_dir}/multiwoz"
+    if not os.path.isdir(processed_dir):
+        os.makedirs(processed_dir)
 
     entity_class_dict = {'O': 0}
     action_class_dict = {}
@@ -45,18 +39,14 @@ def process_data(args, processed_dir):
             dialog_act = turn['dialog_act']
             metadata = turn['metadata']
             span_info = turn['span_info']
+            
             if len(metadata) == 0:  # User
                 speaker = 'speaker1'
-                entity_list, entity_class_dict = find_entities(span_info, entity_class_dict)
-                action_list = []
             else:  # System
                 speaker = 'speaker2'
-                entity_list = []
-                action_list, action_class_dict = find_actions(dialog_act, action_class_dict)
                 
-                if t>0:
-                    action_dialogue[t-1] = action_list
-                    action_list = []
+            entity_list, entity_class_dict = find_entities(span_info, entity_class_dict, speaker)
+            action_list, action_class_dict = find_actions(dialog_act, action_class_dict, speaker)
             
             utter = turn['text'].replace('\n', '')
             
@@ -115,21 +105,16 @@ def process_data(args, processed_dir):
         test_action_dialogs += [action_dialogues[idx] for idx in test_idxs]
     
     print("Now saving data...")
-    save_files("Entity Recognition", entity_dir, args.train_prefix, train_utter_dialogs, train_entity_dialogs, args)
-    save_files("Action Prediction", action_dir, args.train_prefix, train_utter_dialogs, train_action_dialogs, args)
-
-    save_files("Entity Recognition", entity_dir, args.valid_prefix, valid_utter_dialogs, valid_entity_dialogs, args)
-    save_files("Action Prediction", action_dir, args.valid_prefix, valid_utter_dialogs, valid_action_dialogs, args)
-
-    save_files("Entity Recognition", entity_dir, args.test_prefix, test_utter_dialogs, test_entity_dialogs, args)
-    save_files("Action Prediction", action_dir, args.test_prefix, test_utter_dialogs, test_action_dialogs, args)
-
+    save_file(processed_dir, args.train_prefix, train_utter_dialogs, train_entity_dialogs, train_action_dialogs)
+    save_file(processed_dir, args.valid_prefix, valid_utter_dialogs, valid_entity_dialogs, valid_action_dialogs)
+    save_file(processed_dir, args.test_prefix, test_utter_dialogs, test_entity_dialogs, test_action_dialogs)
+    
     print("Saving entity class dictionary...")
-    with open(f"{entity_dir}/{args.class_dict_name}.json", 'w') as f:
+    with open(f"{processed_dir}/entity_{args.class_dict_name}.json", 'w') as f:
         json.dump(entity_class_dict, f)
         
     print("Saving action class dictionary...")
-    with open(f"{action_dir}/{args.class_dict_name}.json", 'w') as f:
+    with open(f"{processed_dir}/action_{args.class_dict_name}.json", 'w') as f:
         json.dump(action_class_dict, f)
     
     num_train_utters = count_utters(train_utter_dialogs)
@@ -159,7 +144,7 @@ def process_data(args, processed_dir):
     print("Done.")
 
 
-def find_entities(span_info, entity_class_dict):
+def find_entities(span_info, entity_class_dict, speaker):
     entity_list = []
     for span in span_info:
         domain = span[0].split('-')[0]
@@ -169,7 +154,7 @@ def find_entities(span_info, entity_class_dict):
         end = span[4]
         
         entity_type = f"{domain}-{slot_type}"
-        if f"B-{entity_type}" not in entity_class_dict:
+        if f"B-{entity_type}" not in entity_class_dict and speaker == 'speaker1':
             entity_class_dict[f"B-{entity_type}"] = len(entity_class_dict)
             entity_class_dict[f"I-{entity_type}"] = len(entity_class_dict)
             
@@ -178,13 +163,15 @@ def find_entities(span_info, entity_class_dict):
     return entity_list, entity_class_dict
 
 
-def find_actions(dialog_act, action_class_dict):
+def find_actions(dialog_act, action_class_dict, speaker):
     action_list = []
     for act, _ in dialog_act.items():
-        if act not in action_class_dict:
-            action_class_dict[act] = len(action_class_dict)
+        domain = act.split('-')[0]
+        action = act.split('-')[1]
+        if action not in action_class_dict and speaker == 'speaker2':
+            action_class_dict[action] = len(action_class_dict)
             
-        action_list.append(act)
+        action_list.append((domain, action))
     
     return list(set(action_list)), action_class_dict
 
@@ -202,13 +189,15 @@ def split_data(idxs, train_frac, valid_frac):
     return train_idxs, valid_idxs, test_idxs
 
 
-def save_files(task_name, save_dir, prefix, utter_dialogues, label_dialogues, args):
-    print(f"Saving {prefix} data for {task_name} as pickle files...")
-    with open(f"{save_dir}/{prefix}_{args.utter_name}.pickle", 'wb') as f:
+def save_file(processed_dir, prefix, utter_dialogues, entity_dialogues, action_dialogues):
+    with open(f"{processed_dir}/{prefix}_utter.pickle", 'wb') as f:
         pickle.dump(utter_dialogues, f)
+
+    with open(f"{processed_dir}/{prefix}_entity.pickle", 'wb') as f:
+        pickle.dump(entity_dialogues, f)
         
-    with open(f"{save_dir}/{prefix}_{args.label_name}.pickle", 'wb') as f:
-        pickle.dump(label_dialogues, f)
+    with open(f"{processed_dir}/{prefix}_action.pickle", 'wb') as f:
+        pickle.dump(action_dialogues, f)
         
 
 def count_utters(dialogues):

@@ -11,6 +11,8 @@ import numpy as np
 
 
 def load_data(dataset_dir, data_prefix, utter_name, label_name):
+    assert label_name == 'entity' or label_name == 'action'
+    
     print(f"Loading {data_prefix} pickle files...")
     with open(f"{dataset_dir}/{data_prefix}_{utter_name}.pickle", 'rb') as f:
         utters = pickle.load(f)
@@ -38,9 +40,9 @@ def get_context_len(seq):
     return context_len
 
 
-def flat_seq(entity_histories, token_ids, args):
-    if len(entity_histories) > 1:
-        seq = entity_histories[:-1] + [token_ids]
+def flat_seq(label_histories, token_ids, args):
+    if len(label_histories) > 1:
+        seq = label_histories[:-1] + [token_ids]
         seq[0] = [args.bos_id] + seq[0]
     else:
         seq = [[args.bos_id], token_ids]
@@ -50,11 +52,6 @@ def flat_seq(entity_histories, token_ids, args):
     
     if context_len + len(seq[-1]) > args.max_len:
         return None, None
-    
-#     if context_len > (args.max_len-len(utters[-1])):
-#         utter_len = (args.max_len-len(utters[-1])) // (args.max_times-1)
-#         utters = [utter[:utter_len] for u, utter in enumerate(utters) if u != len(utters)-1]
-#         context_len = get_context_len(utters)
 
     trg_spots = (context_len+1, context_len+len(seq[-1])-1)
     seq = list(chain.from_iterable(seq))
@@ -66,12 +63,15 @@ def flat_seq(entity_histories, token_ids, args):
 
 class EffERDataset(Dataset):
     def __init__(self, args, data_prefix, class_dict, tokenizer, excluded=[], cached=False):
+        self.target = True if args.setting.split('-')[0] == 'target' else False
+        self.sep = True if args.setting.split('-')[1] == 'sep' else False
+
         self.input_ids = []  # (N, L)
         self.labels = []  # (N, L)
         
         if not cached:
             exceed_count = 0
-            utters, labels = load_data(args.dataset_dir, data_prefix, args.utter_name, args.label_name)  # (N, T, L), (N, T, num_entites)
+            utters, labels = load_data(args.dataset_dir, data_prefix, utter_name='utter', label_name='entity')  # (N, T, L), (N, T, num_entites)
             
             print(f"Processing {data_prefix} data...")
             idx = 0
@@ -85,15 +85,24 @@ class EffERDataset(Dataset):
                         speaker_id = args.speaker2_id
                     utter = line[len(speaker)+1:].lower()
                     tokens = tokenizer.tokenize(utter)
+                    
                     token_ids = [speaker_id] + [tokenizer.get_vocab()[token] for token in tokens]
                     
-                    entity_infos = labels[d][u]
+                    if self.target and speaker == 'speaker2':
+                        entity_infos = []
+                    else:
+                        entity_infos = labels[d][u]
+                    
                     entity_infos.sort(key=lambda x:x[2])
                     entity_seq = [f"({entity_info[0]}, {entity_info[1]})" for entity_info in entity_infos]
                     entity_seq = ' '.join(entity_seq)
                     entity_tokens = tokenizer.tokenize(entity_seq)
                     
-                    entity_histories.append([speaker_id] + [tokenizer.get_vocab()[token] for token in entity_tokens])
+                    speaker_list = []
+                    if self.sep:
+                        speaker_list.append(speaker_id)
+                    
+                    entity_histories.append(speaker_list + [tokenizer.get_vocab()[token] for token in entity_tokens])
                     if len(entity_histories) > args.max_times:
                         entity_histories = entity_histories[1:]
 
@@ -184,12 +193,15 @@ class EffERDataset(Dataset):
 
 class EffAPDataset(Dataset):
     def __init__(self, args, data_prefix, class_dict, tokenizer, excluded=[], cached=False):
+        self.target = True if args.setting.split('-')[0] == 'target' else False
+        self.sep = True if args.setting.split('-')[1] == 'sep' else False
+        
         self.input_ids = []  # (N, L)
         self.labels = []  # (N, num_actions)
         
         if not cached:
             exceed_count = 0
-            utters, labels = load_data(args.dataset_dir, data_prefix, args.utter_name, args.label_name)  # (N, T, L), (N, T, num_actions)
+            utters, labels = load_data(args.dataset_dir, data_prefix, utter_name='utter', label_name='action')  # (N, T, L), (N, T, num_actions)
             
             print(f"Processing {data_prefix} data...")
             idx = 0
@@ -203,21 +215,35 @@ class EffAPDataset(Dataset):
                         speaker_id = args.speaker2_id
                     utter = line[len(speaker)+1:]
                     tokens = tokenizer.tokenize(utter)
+                    
                     token_ids = [speaker_id] + [tokenizer.get_vocab()[token] for token in tokens]
                     
-                    actions = labels[d][u]
-                    action_seq = [f"({action})" for action in actions]
+                    if self.target and speaker == 'speaker1':
+                        actions = []
+                    else:
+                        actions = labels[d][u]
+                    
+                    action_seq = []
+                    for action in actions:
+                        if action[0] != "":
+                            action_seq.append(f"({action[0]}, {action[1]})")
+                        else:
+                            action_seq.append(f"({action[1]})")
                     action_seq = ' '.join(action_seq)
                     
                     action_tokens = tokenizer.tokenize(action_seq)
                     
-                    action_histories.append([speaker_id] + [tokenizer.get_vocab()[token] for token in action_tokens])
+                    speaker_list = []
+                    if self.sep:
+                        speaker_list.append(speaker_id)
+                    
+                    action_histories.append(speaker_list + [tokenizer.get_vocab()[token] for token in action_tokens])
                     if len(action_histories) > args.max_times:
                         action_histories = action_histories[1:]
 
-                    if speaker_id == args.speaker1_id:
+                    if speaker_id == args.speaker1_id and u < len(dialogue)-1:
                         if idx not in excluded:
-                            action_ids = [class_dict[action] for action in actions]
+                            action_ids = [class_dict[action[1]] for action in labels[d][u+1]]
                             target = F.one_hot(torch.LongTensor(action_ids), num_classes=args.num_classes)
                             target = (target.sum(0) > 0).long().tolist()
 

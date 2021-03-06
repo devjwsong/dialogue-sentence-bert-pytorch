@@ -1,8 +1,8 @@
-export MASTER_ADDR=FREE_ADDR
+export MASTER_ADDR=FREE_ADDRESS
 export MASTER_PORT=FREE_PORT
 export OMP_NUM_THREADS=1
 export USE_SIMPLE_THREADED_LEVEL3=1
-export CUDA_VISIBLE_DEVICES=GPU_NUMBER
+export CUDA_VISIBLE_DEVICES=DEVICE
 TOKENIZERS_PARALLELISM=false
 python src/main.py \
     --mode="train" \
@@ -15,21 +15,20 @@ python src/main.py \
     --class_dict_name="class_dict" \
     --train_prefix="train" \
     --valid_prefix="valid" \
-    --utter_name="utter" \
-    --label_name="label" \
+    --test_prefix="test" \
     --entity_dir="entity" \
     --action_dir="action" \
     --max_len=51 \
     --max_times=1 \
     --num_epochs=50 \
-    --batch_size=8 \
+    --batch_size=16 \
     --num_workers=4 \
-    --learning_rate=2e-5 \
+    --learning_rate=5e-5 \
     --warmup_prop=0.1 \
     --max_grad_norm=1.0 \
     --sigmoid_threshold=0.5 \
-    --compressed="no" \
     --cached="no" \
+    --setting=0 \
     --model_seed=0 \
     --data_seed=0 \
     --nodes=1 \

@@ -1,12 +1,12 @@
-export MASTER_ADDR=FREE_ADDR
+export MASTER_ADDR=FREE_ADDRESS
 export MASTER_PORT=FREE_PORT
 export OMP_NUM_THREADS=1
 export USE_SIMPLE_THREADED_LEVEL3=1
-export CUDA_VISIBLE_DEVICES=GPU_NUMBER
+export CUDA_VISIBLE_DEVICES=DEVICE
 TOKENIZERS_PARALLELISM=false
 python src/main.py \
     --mode="test" \
-    --task="entity recognition" \
+    --task="action prediction" \
     --dataset="multiwoz" \
     --model_name="bert-base-uncased" \
     --ckpt_dir="saved_models" \
@@ -22,9 +22,11 @@ python src/main.py \
     --max_len=51 \
     --test_max_len=51 \
     --max_times=1 \
-    --batch_size=8 \
+    --batch_size=16 \
     --test_batch_size=8 \
     --num_workers=4 \
     --sigmoid_threshold=0.5 \
     --cached='no' \
-    --compressed='no'
+    --model_seed=0 \
+    --data_seed=0 \
+    --setting=0

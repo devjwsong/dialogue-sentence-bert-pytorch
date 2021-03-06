@@ -9,10 +9,9 @@ def process_data(args, processed_dir):
     data_dir = f"{args.data_dir}/{args.raw_dir}/TM-3-2020/data"
     assert os.path.isdir(data_dir), "Please check the raw data directory path."
     
-    # For entity recognition
-    entity_dir = f"{processed_dir}/{args.entity_dir}/taskmaster3"
-    if not os.path.isdir(entity_dir):
-        os.makedirs(entity_dir)
+    processed_dir = f"{processed_dir}/taskmaster3"
+    if not os.path.isdir(processed_dir):
+        os.makedirs(processed_dir)
 
     entity_class_dict = {'O': 0}
     
@@ -34,11 +33,10 @@ def process_data(args, processed_dir):
                 utter = turn['text']
                 utter_dialogue.append(f"{speaker}:{utter}")
                 
-                if speaker == 'speaker1' and 'segments' in turn:
+                if 'segments' in turn:
                     entity_list, entity_class_dict = find_entities(turn['segments'], entity_class_dict)
                 else:
                     entity_list = []
-                    
                 entity_dialogue.append(entity_list)
         
             utter_dialogues.append(utter_dialogue)
@@ -51,12 +49,12 @@ def process_data(args, processed_dir):
         split_data(entity_dialogues, args.train_frac, args.valid_frac)
         
     print("Saving files into pickle formats...")
-    save_files('Entity Recognition', entity_dir, args.train_prefix, train_utter_dialogues, train_entity_dialogues, args)
-    save_files('Entity Recognition', entity_dir, args.valid_prefix, valid_utter_dialogues, valid_entity_dialogues, args)
-    save_files('Entity Recognition', entity_dir, args.test_prefix, test_utter_dialogues, test_entity_dialogues, args)
+    save_file(processed_dir, args.train_prefix, train_utter_dialogues, train_entity_dialogues)
+    save_file(processed_dir, args.valid_prefix, valid_utter_dialogues, valid_entity_dialogues)
+    save_file(processed_dir, args.test_prefix, test_utter_dialogues, test_entity_dialogues)
     
     print("Saving entity class dictionary...")
-    with open(f"{entity_dir}/{args.class_dict_name}.json", 'w') as f:
+    with open(f"{processed_dir}/entity_{args.class_dict_name}.json", 'w') as f:
         json.dump(entity_class_dict, f)
     
     num_train_utters = count_utters(train_utter_dialogues)
@@ -105,13 +103,12 @@ def split_data(dialogues, train_frac, valid_frac):
     return train_dialogues, valid_dialogues, test_dialogues
 
 
-def save_files(task_name, save_dir, prefix, utter_dialogues, label_dialogues, args):
-    print(f"Saving {prefix} data for {task_name} as pickle...")
-    with open(f"{save_dir}/{prefix}_{args.utter_name}.pickle", 'wb') as f:
+def save_file(processed_dir, prefix, utter_dialogues, entity_dialogues):
+    with open(f"{processed_dir}/{prefix}_utter.pickle", 'wb') as f:
         pickle.dump(utter_dialogues, f)
-        
-    with open(f"{save_dir}/{prefix}_{args.label_name}.pickle", 'wb') as f:
-        pickle.dump(label_dialogues, f)
+
+    with open(f"{processed_dir}/{prefix}_entity.pickle", 'wb') as f:
+        pickle.dump(entity_dialogues, f)
         
 
 def count_utters(dialogues):

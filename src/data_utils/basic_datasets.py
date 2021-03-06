@@ -11,6 +11,8 @@ import numpy as np
 
 
 def load_data(dataset_dir, data_prefix, utter_name, label_name):
+    assert label_name == 'entity' or label_name == 'action'
+    
     print(f"Loading {data_prefix} pickle files...")
     with open(f"{dataset_dir}/{data_prefix}_{utter_name}.pickle", 'rb') as f:
         utters = pickle.load(f)
@@ -49,11 +51,6 @@ def flat_seq(utters, args):
     
     if context_len + len(utters[-1]) > args.max_len:
         return None, None
-    
-#     if context_len > (args.max_len-len(utters[-1])):
-#         utter_len = (args.max_len-len(utters[-1])) // (args.max_times-1)
-#         utters = [utter[:utter_len] for u, utter in enumerate(utters) if u != len(utters)-1]
-#         context_len = get_context_len(utters)
 
     trg_spots = (context_len+1, context_len+len(utters[-1])-1)
     utters = list(chain.from_iterable(utters))
@@ -70,7 +67,7 @@ class BasicERDataset(Dataset):
         
         if not cached:
             exceed_count = 0
-            utters, labels = load_data(args.dataset_dir, data_prefix, args.utter_name, args.label_name)  # (N, T, L), (N, T, num_entites)
+            utters, labels = load_data(args.dataset_dir, data_prefix, utter_name='utter', label_name='entity')  # (N, T, L), (N, T, num_entites)
             
             print(f"Processing {data_prefix} data...")
             idx = 0
@@ -181,7 +178,7 @@ class BasicAPDataset(Dataset):
         
         if not cached:
             exceed_count = 0
-            utters, labels = load_data(args.dataset_dir, data_prefix, args.utter_name, args.label_name)  # (N, T, L), (N, T, num_actions)
+            utters, labels = load_data(args.dataset_dir, data_prefix, utter_name='utter', label_name='action')  # (N, T, L), (N, T, num_actions)
             
             print(f"Processing {data_prefix} data...")
             idx = 0
@@ -200,10 +197,10 @@ class BasicAPDataset(Dataset):
                     if len(utter_histories) > args.max_times:
                         utter_histories = utter_histories[1:]
 
-                    if speaker_id == args.speaker1_id:
+                    if speaker_id == args.speaker1_id and u < len(dialogue)-1:
                         if idx not in excluded:
-                            actions = labels[d][u]
-                            action_ids = [class_dict[action] for action in actions]
+                            actions = labels[d][u+1]
+                            action_ids = [class_dict[action[1]] for action in actions]
                             target = F.one_hot(torch.LongTensor(action_ids), num_classes=args.num_classes)
                             target = (target.sum(0) > 0).long().tolist()
 

@@ -35,19 +35,24 @@ def main(gpu, args):
     args.device = torch.device(f"cuda:{gpu}")
     
     # For data setting
-    setting = f"{args.max_times}_{args.max_len}_{args.batch_size}"
-    args.processed_dir = f"{args.data_dir}/{args.processed_dir}"
+    whole_setting = f"{args.setting}/{args.max_times}_{args.max_len}_{args.batch_size}"
+    args.dataset_dir = f"{args.data_dir}/{args.processed_dir}/{args.dataset}"
     if args.task == 'entity recognition':
-        args.dataset_dir = f"{args.processed_dir}/entity/{args.dataset}"
-        args.ckpt_dir = f"{args.ckpt_dir}/entity/{args.dataset}/{setting}/{args.model_name}"
+        args.ckpt_dir = f"{args.ckpt_dir}/entity/{args.dataset}/{whole_setting}/{args.model_name}"
+        with open(f"{args.dataset_dir}/entity_{args.class_dict_name}.json", 'r') as f:
+            class_dict = json.load(f)
     elif args.task == 'action prediction':
-        args.dataset_dir = f"{args.processed_dir}/action/{args.dataset}"
-        args.ckpt_dir = f"{args.ckpt_dir}/action/{args.dataset}/{setting}/{args.model_name}"
+        args.ckpt_dir = f"{args.ckpt_dir}/action/{args.dataset}/{whole_setting}/{args.model_name}"
+        with open(f"{args.dataset_dir}/action_{args.class_dict_name}.json", 'r') as f:
+            class_dict = json.load(f)
 
     assert os.path.isdir(args.dataset_dir)
-
-    with open(f"{args.dataset_dir}/{args.class_dict_name}.json", 'r') as f:
-        class_dict = json.load(f)
+    
+    # Random seed fixing
+    np.random.seed(args.model_seed)
+    torch.manual_seed(args.model_seed)
+    torch.cuda.manual_seed_all(args.model_seed)
+    random.seed(args.model_seed)
     
     # For model & tokenizer setting
     print(f"Loading model & tokenizer for {args.mode}...")        
@@ -65,15 +70,9 @@ def main(gpu, args):
     args.speaker1_id = vocab[args.speaker1_token]
     args.speaker2_id = vocab[args.speaker2_token]
     
-    # Re-seed random seed
-    np.random.seed(args.data_seed)
-    torch.manual_seed(args.data_seed)
-    torch.cuda.manual_seed_all(args.data_seed)
-    random.seed(args.data_seed)
-    
     print(f"Loading datasets & dataloaders for {args.task}...")
     cached = True if args.cached == 'yes' else False
-    compressed = True if args.compressed == 'yes' else False
+    is_basic = True if args.setting == 'basic' else False
     if args.mode == 'train':
         train_excluded = []
         valid_excluded = []
@@ -87,21 +86,21 @@ def main(gpu, args):
                 valid_excluded = pickle.load(f)
         
         if args.task == 'entity recognition':
-            if compressed:
-                train_set = EffERDataset(args, args.train_prefix, class_dict, tokenizer, excluded=train_excluded, cached=cached)
-                valid_set = EffERDataset(args, args.valid_prefix, class_dict, tokenizer, excluded=valid_excluded, cached=cached)  
-            else:
+            if is_basic:
                 train_set = BasicERDataset(args, args.train_prefix, class_dict, tokenizer, excluded=train_excluded, cached=cached)
                 valid_set = BasicERDataset(args, args.valid_prefix, class_dict, tokenizer, excluded=valid_excluded, cached=cached)
+            else:
+                train_set = EffERDataset(args, args.train_prefix, class_dict, tokenizer, excluded=train_excluded, cached=cached)
+                valid_set = EffERDataset(args, args.valid_prefix, class_dict, tokenizer, excluded=valid_excluded, cached=cached)  
 
             loss_func = nn.CrossEntropyLoss(ignore_index=-1)
         elif args.task == 'action prediction':
-            if compressed:
-                train_set = EffAPDataset(args, args.train_prefix, class_dict, tokenizer, excluded=train_excluded, cached=cached)
-                valid_set = EffAPDataset(args, args.valid_prefix, class_dict, tokenizer, excluded=valid_excluded, cached=cached)
-            else:
+            if is_basic:
                 train_set = BasicAPDataset(args, args.train_prefix, class_dict, tokenizer, excluded=train_excluded, cached=cached)
                 valid_set = BasicAPDataset(args, args.valid_prefix, class_dict, tokenizer, excluded=valid_excluded, cached=cached)
+            else:
+                train_set = EffAPDataset(args, args.train_prefix, class_dict, tokenizer, excluded=train_excluded, cached=cached)
+                valid_set = EffAPDataset(args, args.valid_prefix, class_dict, tokenizer, excluded=valid_excluded, cached=cached)
 
             loss_func = nn.BCEWithLogitsLoss()
 
@@ -116,6 +115,12 @@ def main(gpu, args):
         else:
             train_sampler = None
 
+        # Re-seed random seed
+        np.random.seed(args.data_seed)
+        torch.manual_seed(args.data_seed)
+        torch.cuda.manual_seed_all(args.data_seed)
+        random.seed(args.data_seed)
+            
         train_loader = DataLoader(train_set, batch_size=args.batch_size, shuffle=True, sampler=train_sampler, num_workers=args.num_workers, pin_memory=True)
         valid_loader = DataLoader(valid_set, batch_size=args.batch_size, shuffle=True, num_workers=args.num_workers, pin_memory=True)
     
@@ -140,15 +145,15 @@ def main(gpu, args):
                 test_excluded = pickle.load(f)
         
         if args.task == 'entity recognition':
-            if compressed:
-                test_set = EffERDataset(args, args.test_prefix, class_dict, tokenizer, excluded=test_excluded, cached=cached)
-            else:
+            if is_basic:
                 test_set = BasicERDataset(args, args.test_prefix, class_dict, tokenizer, excluded=test_excluded, cached=cached)
-        elif args.task == 'action prediction':
-            if compressed:
-                test_set = EffAPDataset(args, args.test_prefix, class_dict, tokenizer, excluded=test_excluded, cached=cached)
             else:
+                test_set = EffERDataset(args, args.test_prefix, class_dict, tokenizer, excluded=test_excluded, cached=cached)
+        elif args.task == 'action prediction':
+            if is_basic:
                 test_set = BasicAPDataset(args, args.test_prefix, class_dict, tokenizer, excluded=test_excluded, cached=cached)
+            else:
+                test_set = EffAPDataset(args, args.test_prefix, class_dict, tokenizer, excluded=test_excluded, cached=cached)
 
         test_loader = DataLoader(test_set, batch_size=args.batch_size, shuffle=True, num_workers=args.num_workers, pin_memory=True)
         model.load_state_dict(torch.load(f"{args.ckpt_dir}/{args.ckpt_name}.ckpt"))
@@ -334,7 +339,7 @@ def train_ap(args, model, loss_func, optim, scheduler, train_loader, valid_loade
                 batch_masks = None
 
             outputs = model(batch_input_ids, padding_masks=batch_masks)  # (B, C)
-
+            
             loss = loss_func(outputs, batch_labels)  # ()
 
             for param in model.parameters():
@@ -357,7 +362,7 @@ def train_ap(args, model, loss_func, optim, scheduler, train_loader, valid_loade
 
         train_loss = np.mean(train_losses)
         print(f"Train loss: {train_loss}")
-
+        
         train_scores = action_scores(train_preds, train_trues)
         train_log_list = make_log_list('Train', train_scores)
         print(" || ".join(train_log_list))
@@ -372,7 +377,7 @@ def train_ap(args, model, loss_func, optim, scheduler, train_loader, valid_loade
                 best_crit = valid_crit
                 train_crit = train_scores[crit_metric]
 
-                ckpt_name = f"{args.model_name}_intent_epoch{epoch}_{round(train_crit, 4)}_{round(valid_crit, 4)}.ckpt"
+                ckpt_name = f"{args.model_name}_action_epoch{epoch}_{round(train_crit, 4)}_{round(valid_crit, 4)}.ckpt"
                 torch.save(model.state_dict(), f"{args.ckpt_dir}/{ckpt_name}")
                 print("*"*10 + "Current best model saved." + "*"*10)
 
@@ -397,10 +402,10 @@ def train_ap(args, model, loss_func, optim, scheduler, train_loader, valid_loade
     print(f"Mean train time per epoch: {mean_times[0]}")
     
     max_times = str(datetime.timedelta(seconds=max_sec)).split(".")
-    print(f"Mean train time per epoch: {max_times[0]}")
+    print(f"Max train time per epoch: {max_times[0]}")
     
     min_times = str(datetime.timedelta(seconds=min_sec)).split(".")
-    print(f"Mean train time per epoch: {min_times[0]}")
+    print(f"Min train time per epoch: {min_times[0]}")
     
     
 def eval_ap(args, model, eval_loader, loss_func=None):
@@ -480,8 +485,6 @@ if __name__=='__main__':
     parser.add_argument('--train_prefix', type=str, default="train", help="The prefix of file name related to train set.")
     parser.add_argument('--valid_prefix', type=str, default="valid", help="The prefix of file name related to valid set.")
     parser.add_argument('--test_prefix', type=str, default="test", help="The prefix of file name related to test set.")
-    parser.add_argument('--utter_name', required=True, type=str, default="utter", help="The indication for utterance files' name.")
-    parser.add_argument('--label_name', required=True, type=str, default="label", help="The indication for label files' name.")
     parser.add_argument('--entity_dir', required=True, type=str, default="entity", help="The directory path for entity recognition data files.")
     parser.add_argument('--action_dir', required=True, type=str, default="action", help="The directory path for action prediction data files.")
     parser.add_argument('--max_len', required=True, type=int, default=512, help="The maximum sequence length including all dialog contexts.")
@@ -499,10 +502,10 @@ if __name__=='__main__':
     parser.add_argument('--patience', type=int, default=3, help="The patience epoch.")
     parser.add_argument('--threshold', type=float, default=1e-3, help="The threshold to decide learning rate scheduling.")
     parser.add_argument('--sigmoid_threshold', required=True, type=float, default=0.5, help="The sigmoid threshold for action prediction task.")
-    parser.add_argument('--compressed', required=True, type=str, default='no', help="Using compressed version or not?")
     parser.add_argument('--cached', required=True, type=str, default='no', help="Using the cached data or not?")
     parser.add_argument('--model_seed', required=True, type=int, default=0, help="The seed number for model initialization.")
     parser.add_argument('--data_seed', required=True, type=int, default=0, help="The seed number for data shuffle.")
+    parser.add_argument('--setting', required=True, type=int, default=0, help="Multi-turn setting.")
     
     parser.add_argument('--nodes', type=int, default=1)
     parser.add_argument('--gpus', type=int, default=1)
@@ -513,9 +516,19 @@ if __name__=='__main__':
     assert args.mode == 'train' or args.mode == 'test', "Please specify a correct mode."
     assert args.task == 'entity recognition'\
         or args.task == 'action prediction', \
-        "You must specify a correct finetune task in finetuning mode."
+        "You must specify a correct finetune task."
     assert args.model_name is not None, "You must specify the pre-trained model."
     assert args.dataset is not None, "You must specify the dataset name."
+    assert args.setting >= 0 and args.setting < 5, "The setting value must be among 0 ~ 4."
+    
+    setting_dict = {
+        0: 'basic',
+        1: 'target-sep',
+        2: 'target-nonsep',
+        3: 'all-sep',
+        4: 'all-nonsep'
+    }
+    args.setting = setting_dict[args.setting]
     
     print("#"*50 + "Running spec" + "#"*50)
     print(f"Mode: {args.mode}")
@@ -527,8 +540,8 @@ if __name__=='__main__':
     print(f"Max sequence length: {args.max_len}")
     print(f"Max turns: {args.max_times}")
     print(f"Batch size: {args.batch_size}")
-    print(f"Compressed: {args.compressed}")
     print(f"Cached: {args.cached}")
+    print(f"Setting: {args.setting}")
     
     input("Press Enter to continue...")
     

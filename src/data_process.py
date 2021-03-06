@@ -5,8 +5,7 @@ import argparse
 import os
 
 
-# data_list = ["multiwoz", "taskmaster3", "dstc2", "sim"]
-data_list = ['multiwoz']
+data_list = ["multiwoz", "taskmaster3", "dstc2", "sim"]
 
 
 def process_data(args, processed_dir):
@@ -40,8 +39,6 @@ if __name__=='__main__':
     parser.add_argument('--train_prefix', required=True, type=str, default="train", help="The prefix of file name related to train set.")
     parser.add_argument('--valid_prefix', required=True, type=str, default="valid", help="The prefix of file name related to valid set.")
     parser.add_argument('--test_prefix', required=True, type=str, default="test", help="The prefix of file name related to test set.")
-    parser.add_argument('--utter_name', required=True, type=str, default="utter", help="The indication for utterance files' name.")
-    parser.add_argument('--label_name', required=True, type=str, default="label", help="The indication for label files' name.")
     parser.add_argument('--class_dict_name', required=True, type=str, default="class_dict", help="The name of class dictionary json file.")
     
     args = parser.parse_args()

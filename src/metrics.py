@@ -1,16 +1,14 @@
 from sklearn.metrics import accuracy_score as sklearn_acc
 from sklearn.metrics import f1_score as sklearn_f1
 from seqeval.metrics import f1_score as seqeval_f1
+from seqeval.metrics import precision_score, recall_score
 from itertools import chain
 
 import torch
 import numpy as np
 
-# Entity Recognition: Sequence-level accuracy, Entity-level micro-f1, Entity-level macro-f1
-# Action Prediction: mirco-F1, macro-F1
 
-
-def entity_scores(preds, trues, class_dict):
+def entity_scores(preds, trues, class_dict, round_num=4):
     # preds: list of predicted sublists at last sequence length which contains each label for entity (N, L)
     # trues: list of ground-truth sublists at last sequence length which contains each label for entity (N, L)
     
@@ -23,6 +21,8 @@ def entity_scores(preds, trues, class_dict):
     
     entity_micro_f1 = seqeval_f1(text_trues, text_preds, average='micro')
     entity_macro_f1 = seqeval_f1(text_trues, text_preds, average='macro')
+    entity_micro_precision = precision_score(text_trues, text_preds, average='micro')
+    entity_micro_recall = recall_score(text_trues, text_preds, average='micro')
     
     count = 0
     for t, true in enumerate(trues):
@@ -31,20 +31,23 @@ def entity_scores(preds, trues, class_dict):
     exact_acc = count / len(trues)
     
     scores = {
-        'entity_micro_f1': entity_micro_f1,
-        'entity_macro_f1': entity_macro_f1,
-        'exact_acc': exact_acc
+        'entity_micro_f1': round(entity_micro_f1, round_num),
+        'entity_macro_f1': round(entity_macro_f1, round_num),
+        'entity_micro_precision': round(entity_micro_precision, round_num),
+        'entity_micro_recall': round(entity_micro_recall, round_num),
+        'exact_acc': round(exact_acc, round_num)
     }
     
     return scores
 
 
-def action_scores(preds, trues):
+def action_scores(preds, trues, round_num=4):
     # preds: list of predicted sublists which contains binary indicator for each label (N, num_classes)
     # trues: list of ground-truth sublists which contains binary indicator for each label (N, num_classes)
     
-    micro_f1 = sklearn_f1(trues, preds, average='micro')
-    macro_f1 = sklearn_f1(trues, preds, average='macro')
+    micro_f1 = sklearn_f1(trues, preds, average='micro', zero_division=0)
+    macro_f1 = sklearn_f1(trues, preds, average='macro', zero_division=0)
+    samples_f1 = sklearn_f1(trues, preds, average='samples', zero_division=0)
     
     count = 0
     for t, true in enumerate(trues):
@@ -53,9 +56,10 @@ def action_scores(preds, trues):
     exact_acc = count / len(trues)
     
     scores = {
-        'micro_f1': micro_f1,
-        'macro_f1': macro_f1,
-        'exact_acc': exact_acc
+        'micro_f1': round(micro_f1, round_num),
+        'macro_f1': round(macro_f1, round_num),
+        'samples_f1': round(samples_f1, round_num),
+        'exact_acc': round(exact_acc, round_num)
     }
     
     return scores

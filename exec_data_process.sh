@@ -9,6 +9,4 @@ python src/data_process.py \
     --train_prefix="train" \
     --valid_prefix="valid" \
     --test_prefix="test" \
-    --utter_name="utter" \
-    --label_name="label" \
     --class_dict_name="class_dict"
