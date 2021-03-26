@@ -201,12 +201,14 @@ class EffAPDataset(Dataset):
         
         if not cached:
             exceed_count = 0
-            utters, labels = load_data(args.dataset_dir, data_prefix, utter_name='utter', label_name='action')  # (N, T, L), (N, T, num_actions)
+            utters, action_labels = load_data(args.dataset_dir, data_prefix, utter_name='utter', label_name='action')  # (N, T, L), (N, T, num_actions)
+            _, entity_labels = load_data(args.dataset_dir, data_prefix, utter_name='utter', label_name='entity')  # (N, T, L), (N, T, num_entites)
             
             print(f"Processing {data_prefix} data...")
             idx = 0
             for d, dialogue in enumerate(tqdm(utters)):
-                action_histories = []
+#                 action_histories = []
+                entity_histories = []
                 for u, line in enumerate(dialogue):
                     speaker = line.split(':')[0]
                     if speaker == 'speaker1':
@@ -218,38 +220,55 @@ class EffAPDataset(Dataset):
                     
                     token_ids = [speaker_id] + [tokenizer.get_vocab()[token] for token in tokens]
                     
-                    if self.target and speaker == 'speaker1':
-                        actions = []
+#                     if self.target and speaker == 'speaker1':
+#                         actions = []
+                    if self.target and speaker == 'speaker2':
+                        entity_infos = []
                     else:
-                        actions = labels[d][u]
+#                         actions = labels[d][u]
+                        entity_infos = entity_labels[d][u]
+    
+#                     action_seq = []
+#                     for action in actions:
+#                         if action[0] != "":
+#                             action_seq.append(f"({action[0]}, {action[1]})")
+#                         else:
+#                             action_seq.append(f"({action[1]})")
+#                     action_seq = ' '.join(action_seq)
                     
-                    action_seq = []
-                    for action in actions:
-                        if action[0] != "":
-                            action_seq.append(f"({action[0]}, {action[1]})")
-                        else:
-                            action_seq.append(f"({action[1]})")
-                    action_seq = ' '.join(action_seq)
-                    
-                    action_tokens = tokenizer.tokenize(action_seq)
+#                     action_tokens = tokenizer.tokenize(action_seq)
+
+#                     speaker_list = []
+#                     if self.sep:
+#                         speaker_list.append(speaker_id)
+
+                    entity_infos.sort(key=lambda x:x[2])
+                    entity_seq = [f"({entity_info[0]}, {entity_info[1]})" for entity_info in entity_infos]
+                    entity_seq = ' '.join(entity_seq)
+                    entity_tokens = tokenizer.tokenize(entity_seq)
                     
                     speaker_list = []
                     if self.sep:
                         speaker_list.append(speaker_id)
                     
-                    action_histories.append(speaker_list + [tokenizer.get_vocab()[token] for token in action_tokens])
-                    if len(action_histories) > args.max_times:
-                        action_histories = action_histories[1:]
+#                     action_histories.append(speaker_list + [tokenizer.get_vocab()[token] for token in action_tokens])
+#                     if len(action_histories) > args.max_times:
+#                         action_histories = action_histories[1:]
+
+                    entity_histories.append(speaker_list + [tokenizer.get_vocab()[token] for token in entity_tokens])
+                    if len(entity_histories) > args.max_times:
+                        entity_histories = entity_histories[1:]
 
                     if speaker_id == args.speaker1_id and u < len(dialogue)-1:
                         if idx not in excluded:
-                            action_ids = [class_dict[action[1]] for action in labels[d][u+1]]
+                            action_ids = [class_dict[action[1]] for action in action_labels[d][u+1]]
                             target = F.one_hot(torch.LongTensor(action_ids), num_classes=args.num_classes)
                             target = (target.sum(0) > 0).long().tolist()
 
                             assert len(target) == len(class_dict)
 
-                            input_ids, _ = flat_seq(copy.deepcopy(action_histories), token_ids, args)
+#                             input_ids, _ = flat_seq(copy.deepcopy(action_histories), token_ids, args)
+                            input_ids, _ = flat_seq(copy.deepcopy(entity_histories), token_ids, args)
 
                             if input_ids is not None:
                                 self.input_ids.append(input_ids)

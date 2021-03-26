@@ -1,22 +1,16 @@
 from torch import nn as nn
-from torch.nn import functional as F
-from tqdm import tqdm
 
 import torch
 
 
-def load_finetune_layer(args, class_dict=None, pretrained_model=None, tokenizer=None):
+def load_output_layer(args):
     if args.task == 'entity recognition':
-        args.num_classes = len(class_dict)
-        
         er_layer = EntityRecognition(args)
         er_layer.init_params()
 
         return er_layer, args
 
-    elif args.task == 'action prediction':
-        args.num_classes = len(class_dict)
-        
+    elif args.task == 'action prediction':        
         ap_layer = ActionPrediction(args)
         ap_layer.init_params()
 

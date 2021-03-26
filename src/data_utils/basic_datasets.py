@@ -22,16 +22,6 @@ def load_data(dataset_dir, data_prefix, utter_name, label_name):
     return utters, labels
 
 
-def pad_seq(seq, max_len, pad_id, eos_id):
-    if len(seq) <= max_len:
-        seq += [pad_id] * (max_len-len(seq))
-    else:
-        seq = seq[:max_len]
-        seq[-1] = eos_id
-        
-    return seq
-
-
 def get_context_len(utters):
     context_len = 0
     for utter in utters[:-1]:
@@ -49,28 +39,27 @@ def flat_seq(utters, args):
     
     context_len = get_context_len(utters)
     
-    if context_len + len(utters[-1]) > args.max_len:
+    if context_len + len(utters[-1]) > args.max_encoder_len:
         return None, None
 
     trg_spots = (context_len+1, context_len+len(utters[-1])-1)
     utters = list(chain.from_iterable(utters))
     
-    assert len(utters) <= args.max_len
-    
-    return pad_seq(utters, args.max_len, args.pad_id, args.eos_id), trg_spots
+    return utters, trg_spots
     
 
 class BasicERDataset(Dataset):
-    def __init__(self, args, data_prefix, class_dict, tokenizer, excluded=[], cached=False):
+    def __init__(self, args, data_prefix, class_dict, tokenizer, cached=False):
         self.input_ids = []  # (N, L)
         self.labels = []  # (N, L)
+        
+        max_len = 0
         
         if not cached:
             exceed_count = 0
             utters, labels = load_data(args.dataset_dir, data_prefix, utter_name='utter', label_name='entity')  # (N, T, L), (N, T, num_entites)
             
             print(f"Processing {data_prefix} data...")
-            idx = 0
             for d, dialogue in enumerate(tqdm(utters)):
                 utter_histories = []
                 for u, line in enumerate(dialogue):
@@ -83,51 +72,44 @@ class BasicERDataset(Dataset):
                     tokens = tokenizer.tokenize(utter)
                     token_ids = [speaker_id] + [tokenizer.get_vocab()[token] for token in tokens]
                     utter_histories.append(token_ids)
-                    if len(utter_histories) > args.max_times:
+                    if len(utter_histories) > args.max_turns:
                         utter_histories = utter_histories[1:]
 
                     if speaker_id == args.speaker1_id:
-                        if idx not in excluded:
-                            utter_labels = ['O' for i in range(len(tokens))]
-                            entity_infos = labels[d][u]
-                            entity_infos.sort(key=lambda x:x[2])
-                            for entity_info in entity_infos:
-                                entity_type = entity_info[0]
-                                entity_value = entity_info[1].lower()
-                                if 'gpt' in args.model_name.lower():
-                                    add_entity_tokens = tokenizer.tokenize(" " + entity_value)
-                                else:
-                                    add_entity_tokens = None
-                                entity_tokens = tokenizer.tokenize(entity_value)
-                                utter_labels = self.update_labels(tokens, entity_type, entity_tokens, utter_labels, add_entity_tokens=add_entity_tokens)
+                        utter_labels = ['O' for i in range(len(tokens))]
+                        entity_infos = labels[d][u]
+                        entity_infos.sort(key=lambda x:x[2])
+                        for entity_info in entity_infos:
+                            entity_type = entity_info[0]
+                            entity_value = entity_info[1].lower()
 
-                            assert len(tokens) == len(utter_labels)
+                            entity_tokens = tokenizer.tokenize(entity_value)
+                            utter_labels = self.update_labels(tokens, entity_type, entity_tokens, utter_labels)
 
-                            utter_labels = [class_dict[label] for label in utter_labels]
+                        assert len(tokens) == len(utter_labels)
 
-                            input_ids, trg_spots = flat_seq(copy.deepcopy(utter_histories), args)
-                            if input_ids is not None:
-                                full_labels = [-1] * len(input_ids)
-                                full_labels[trg_spots[0]:trg_spots[1]] = utter_labels
+                        utter_labels = [class_dict[label] for label in utter_labels]
 
-                                self.labels.append(full_labels)
-                                self.input_ids.append(input_ids)
-                            else:
-                                exceed_count += 1
-                                excluded.append(idx)
+                        input_ids, trg_spots = flat_seq(copy.deepcopy(utter_histories), args)
+                        if input_ids is not None:
+                            full_labels = [-1] * len(input_ids)
+                            full_labels[trg_spots[0]:trg_spots[1]] = utter_labels
+
+                            self.labels.append(full_labels)
+                            self.input_ids.append(input_ids)
                             
-                        idx += 1
+                            max_len = max(max_len, len(input_ids))
+                        else:
+                            exceed_count += 1
             
             assert len(self.input_ids) == len(self.labels)
             
             print(f"Exceed count: {exceed_count}")
+            print(f"Max length: {max_len}")
             with open(f"{args.ckpt_dir}/{data_prefix}_input_ids_cached.pickle", 'wb') as f:
                 pickle.dump(self.input_ids, f)
             with open(f"{args.ckpt_dir}/{data_prefix}_labels_cached.pickle", 'wb') as f:
                 pickle.dump(self.labels, f)
-                
-            with open(f"{args.ckpt_dir}/{data_prefix}_excluded.pickle", 'wb') as f:
-                pickle.dump(excluded, f)
         else:
             print("Loading cached data...")
             with open(f"{args.ckpt_dir}/{data_prefix}_input_ids_cached.pickle", 'rb') as f:
@@ -136,19 +118,14 @@ class BasicERDataset(Dataset):
                 self.labels = pickle.load(f)
         
         print(f"Total {len(self.input_ids)} sequences prepared.")
-        
-        self.input_ids = torch.LongTensor(self.input_ids)
-        self.labels = torch.LongTensor(self.labels)
-        
-        assert args.max_len == self.input_ids.shape[1]
     
     def __len__(self):
-        return self.input_ids.shape[0]
+        return len(self.input_ids)
     
     def __getitem__(self, idx):
         return self.input_ids[idx], self.labels[idx]
     
-    def update_labels(self, tokens, entity_type, entity_tokens, labels, add_entity_tokens=None):
+    def update_labels(self, tokens, entity_type, entity_tokens, labels):
         found = False
 
         def find(tokens, entity_type, entity_tokens, labels, found):
@@ -165,23 +142,21 @@ class BasicERDataset(Dataset):
 
         labels, found = find(tokens, entity_type, entity_tokens, labels, found)
 
-        if add_entity_tokens is not None and found is False:
-            labels, found = find(tokens, entity_type, add_entity_tokens, labels, found)
-
         return labels
     
 
 class BasicAPDataset(Dataset):
-    def __init__(self, args, data_prefix, class_dict, tokenizer, excluded=[], cached=False):
+    def __init__(self, args, data_prefix, class_dict, tokenizer, cached=False):
         self.input_ids = []  # (N, L)
         self.labels = []  # (N, num_actions)
+        
+        max_len = 0
         
         if not cached:
             exceed_count = 0
             utters, labels = load_data(args.dataset_dir, data_prefix, utter_name='utter', label_name='action')  # (N, T, L), (N, T, num_actions)
             
             print(f"Processing {data_prefix} data...")
-            idx = 0
             for d, dialogue in enumerate(tqdm(utters)):
                 utter_histories = []
                 for u, line in enumerate(dialogue):
@@ -194,39 +169,35 @@ class BasicAPDataset(Dataset):
                     tokens = tokenizer.tokenize(utter)
                     token_ids = [speaker_id] + [tokenizer.get_vocab()[token] for token in tokens]
                     utter_histories.append(token_ids)
-                    if len(utter_histories) > args.max_times:
+                    if len(utter_histories) > args.max_turns:
                         utter_histories = utter_histories[1:]
 
                     if speaker_id == args.speaker1_id and u < len(dialogue)-1:
-                        if idx not in excluded:
-                            actions = labels[d][u+1]
-                            action_ids = [class_dict[action[1]] for action in actions]
-                            target = F.one_hot(torch.LongTensor(action_ids), num_classes=args.num_classes)
-                            target = (target.sum(0) > 0).long().tolist()
+                        actions = labels[d][u+1]
+                        action_ids = [class_dict[action[1]] for action in actions]
+                        target = F.one_hot(torch.LongTensor(action_ids), num_classes=args.num_classes)
+                        target = (target.sum(0) > 0).long().tolist()
 
-                            assert len(target) == len(class_dict)
+                        assert len(target) == len(class_dict)
 
-                            input_ids, _ = flat_seq(copy.deepcopy(utter_histories), args)
+                        input_ids, _ = flat_seq(copy.deepcopy(utter_histories), args)
 
-                            if input_ids is not None:
-                                self.input_ids.append(input_ids)
-                                self.labels.append(target)
-                            else:
-                                exceed_count += 1
-                                excluded.append(idx)
-
-                        idx += 1
+                        if input_ids is not None:
+                            self.input_ids.append(input_ids)
+                            self.labels.append(target)
+                            
+                            max_len = max(max_len, len(input_ids))
+                        else:
+                            exceed_count += 1
 
             assert len(self.input_ids) == len(self.labels)
             
             print(f"Exceed count: {exceed_count}")
+            print(f"Max length: {max_len}")
             with open(f"{args.ckpt_dir}/{data_prefix}_input_ids_cached.pickle", 'wb') as f:
                 pickle.dump(self.input_ids, f)
             with open(f"{args.ckpt_dir}/{data_prefix}_labels_cached.pickle", 'wb') as f:
                 pickle.dump(self.labels, f)
-                
-            with open(f"{args.ckpt_dir}/{data_prefix}_excluded.pickle", 'wb') as f:
-                pickle.dump(excluded, f)
         else:
             print("Loading cached data...")
             with open(f"{args.ckpt_dir}/{data_prefix}_input_ids_cached.pickle", 'rb') as f:
@@ -235,14 +206,28 @@ class BasicAPDataset(Dataset):
                 self.labels = pickle.load(f)
         
         print(f"Total {len(self.input_ids)} sequences prepared.")
-        
-        self.input_ids = torch.LongTensor(self.input_ids)
-        self.labels = torch.FloatTensor(self.labels)
-        
-        assert args.max_len == self.input_ids.shape[1]
                     
     def __len__(self):
-        return self.input_ids.shape[0]
+        return len(self.input_ids)
         
     def __getitem__(self, idx):
         return self.input_ids[idx], self.labels[idx]
+    
+    
+class PadCollate():
+    def __init__(self, input_pad_id, label_pad_id=None):
+        self.input_pad_id = input_pad_id
+        self.label_pad_id = label_pad_id
+
+    def pad_collate(self, batch):
+        input_ids, labels = [], []
+        for idx, pair in enumerate(batch):
+            input_ids.append(torch.LongTensor(pair[0]))
+            labels.append(torch.LongTensor(pair[1]))
+
+        padded_input_ids = torch.nn.utils.rnn.pad_sequence(input_ids, batch_first=True, padding_value=self.input_pad_id)
+        if self.label_pad_id is not None:
+            padded_labels = torch.nn.utils.rnn.pad_sequence(labels, batch_first=True, padding_value=self.label_pad_id)
+            return padded_input_ids.contiguous(), padded_labels.contiguous()
+        else:
+            return padded_input_ids.contiguous(), torch.LongTensor(labels).contiguous()

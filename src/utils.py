@@ -6,6 +6,7 @@ from itertools import chain
 
 import torch
 import numpy as np
+import random
 
 
 def entity_scores(preds, trues, class_dict, round_num=4):
@@ -63,3 +64,27 @@ def action_scores(preds, trues, round_num=4):
     }
     
     return scores
+
+
+def write_summaries(writer, epoch, train_loss, valid_loss, train_scores, valid_scores):
+    writer.add_scalars(
+        'losses', 
+        {'Train': train_loss, 'Valid': valid_loss},
+        epoch
+    )
+    for metric in train_scores:
+        train_value = train_scores[metric]
+        valid_value = valid_scores[metric]
+
+        writer.add_scalars(
+            f'{metric}s', 
+            {'Train': train_value, 'Valid': valid_value},
+            epoch
+        )
+
+
+def fix_seed(seed):
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+    random.seed(seed)

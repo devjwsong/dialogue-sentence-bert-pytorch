@@ -135,3 +135,6 @@ data/
 # Jupyter files
 *.ipynb
 nohup.out
+
+# Pytorch Lightning
+lightning_logs/
