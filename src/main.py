@@ -94,13 +94,6 @@ def run(args):
     # Model setting
     print(f"Loading model & tokenizer for {task_desc}...")       
     pl_model = BasicLightningModule(args)
-        
-    vocab = tokenizer.get_vocab()
-    args.bos_id = vocab[args.bos_token]
-    args.eos_id = vocab[args.eos_token]
-    args.pad_id = vocab[args.pad_token]
-    args.speaker1_id = vocab[args.speaker1_token]
-    args.speaker2_id = vocab[args.speaker2_token]
     
     # Re-seed random seed for data shuffle
     fix_seed(args.data_seed)

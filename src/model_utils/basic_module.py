@@ -15,6 +15,7 @@ class BasicLightningModule(LightningModule):
         super().__init__()
         
         self.args = args
+        self.save_hyperparameters(args)
         
         fix_seed(self.args.model_seed)
         self.encoder, self.args = load_encoder(self.args)
