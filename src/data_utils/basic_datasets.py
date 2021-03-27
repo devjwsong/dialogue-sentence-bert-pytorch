@@ -214,8 +214,8 @@ class BasicAPDataset(Dataset):
         return self.input_ids[idx], self.labels[idx]
     
     
-class PadCollate():
-    def __init__(self, input_pad_id, label_pad_id=None):
+class EntityPadCollate():
+    def __init__(self, input_pad_id, label_pad_id):
         self.input_pad_id = input_pad_id
         self.label_pad_id = label_pad_id
 
@@ -226,8 +226,22 @@ class PadCollate():
             labels.append(torch.LongTensor(pair[1]))
 
         padded_input_ids = torch.nn.utils.rnn.pad_sequence(input_ids, batch_first=True, padding_value=self.input_pad_id)
-        if self.label_pad_id is not None:
-            padded_labels = torch.nn.utils.rnn.pad_sequence(labels, batch_first=True, padding_value=self.label_pad_id)
-            return padded_input_ids.contiguous(), padded_labels.contiguous()
-        else:
-            return padded_input_ids.contiguous(), torch.LongTensor(labels).contiguous()
+        padded_labels = torch.nn.utils.rnn.pad_sequence(labels, batch_first=True, padding_value=self.label_pad_id)
+        
+        return padded_input_ids.contiguous(), padded_labels.contiguous()
+
+    
+class ActionPadCollate():
+    def __init__(self, input_pad_id):
+        self.input_pad_id = input_pad_id
+
+    def pad_collate(self, batch):
+        input_ids, labels = [], []
+        for idx, pair in enumerate(batch):
+            input_ids.append(torch.LongTensor(pair[0]))
+            labels.append(pair[1])
+
+        padded_input_ids = torch.nn.utils.rnn.pad_sequence(input_ids, batch_first=True, padding_value=self.input_pad_id)
+        labels = torch.LongTensor(labels)
+        
+        return padded_input_ids.contiguous(), labels.contiguous()

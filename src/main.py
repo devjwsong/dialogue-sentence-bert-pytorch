@@ -28,6 +28,8 @@ def run(args):
     with open(f"{args.dataset_dir}/{task_desc}_{args.class_dict_name}.json", 'r') as f:
         args.class_dict = json.load(f)
         
+    args.num_classes = len(args.class_dict)
+        
     if not os.path.isdir(args.ckpt_dir):
         os.makedirs(args.ckpt_dir)
         
@@ -75,15 +77,13 @@ def run(args):
             test_set = EffERDataset(args, args.test_prefix, args.class_dict, tokenizer, cached=cached)
     elif args.task == 'action prediction':
         if args.setting == 0:
-            train_set = BasicARDataset(args, args.train_prefix, args.class_dict, tokenizer, cached=cached)
-            valid_set = BasicARDataset(args, args.valid_prefix, args.class_dict, tokenizer, cached=cached)
-            test_set = BasicARDataset(args, args.test_prefix, args.class_dict, tokenizer, cached=cached)
+            train_set = BasicAPDataset(args, args.train_prefix, args.class_dict, tokenizer, cached=cached)
+            valid_set = BasicAPDataset(args, args.valid_prefix, args.class_dict, tokenizer, cached=cached)
+            test_set = BasicAPDataset(args, args.test_prefix, args.class_dict, tokenizer, cached=cached)
         else:
-            train_set = EffARDataset(args, args.train_prefix, args.class_dict, tokenizer, cached=cached)
-            valid_set = EffARDataset(args, args.valid_prefix, args.class_dict, tokenizer, cached=cached)
-            test_set = EffARDataset(args, args.test_prefix, args.class_dict, tokenizer, cached=cached)
-        
-    args.num_classes = len(args.class_dict)
+            train_set = EffAPDataset(args, args.train_prefix, args.class_dict, tokenizer, cached=cached)
+            valid_set = EffAPDataset(args, args.valid_prefix, args.class_dict, tokenizer, cached=cached)
+            test_set = EffAPDataset(args, args.test_prefix, args.class_dict, tokenizer, cached=cached)
     
     args.total_train_steps = int(len(train_set) / args.batch_size * args.num_epochs)
     args.warmup_steps = int(args.total_train_steps * args.warmup_prop)
@@ -100,11 +100,12 @@ def run(args):
     
     # Dataloaders
     input_pad_id = args.pad_id
-    label_pad_id = None
     if args.task == 'entity recognition':
         label_pad_id = -1
+        ppd = EntityPadCollate(input_pad_id=input_pad_id, label_pad_id=label_pad_id)
+    elif args.task == 'action prediction':
+        ppd = ActionPadCollate(input_pad_id=input_pad_id)
     
-    ppd = PadCollate(input_pad_id=input_pad_id, label_pad_id=label_pad_id)
     train_loader = DataLoader(train_set, collate_fn=ppd.pad_collate, batch_size=args.batch_size, shuffle=True, num_workers=args.num_workers, pin_memory=True)
     valid_loader = DataLoader(valid_set, collate_fn=ppd.pad_collate, batch_size=args.batch_size, num_workers=args.num_workers, pin_memory=True)
     test_loader = DataLoader(test_set, collate_fn=ppd.pad_collate, batch_size=args.batch_size, num_workers=args.num_workers, pin_memory=True)

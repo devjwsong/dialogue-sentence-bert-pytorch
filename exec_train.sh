@@ -1,5 +1,5 @@
 python src/main.py \
-    --task="entity recognition" \
+    --task="action prediction" \
     --dataset="multiwoz" \
     --model_name="bert-base-uncased" \
     --ckpt_dir="saved_models" \
@@ -9,15 +9,15 @@ python src/main.py \
     --train_prefix="train" \
     --valid_prefix="valid" \
     --test_prefix="test" \
-    --max_turns=1 \
-    --num_epochs=50 \
+    --max_turns=10 \
+    --num_epochs=20 \
     --batch_size=16 \
     --num_workers=8 \
     --learning_rate=5e-5 \
     --warmup_prop=0.1 \
     --max_grad_norm=1.0 \
     --sigmoid_threshold=0.5 \
-    --cached="yes" \
+    --cached="no" \
     --model_seed=555 \
     --data_seed=0 \
     --setting=0 \

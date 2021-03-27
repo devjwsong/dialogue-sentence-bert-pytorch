@@ -28,7 +28,7 @@ class BasicLightningModule(LightningModule):
     def forward(self, input_ids, padding_masks=None):  # input_ids: (B, L), padding_masks: (B, L)
         hidden_states = self.encoder(input_ids=input_ids, attention_mask=padding_masks)[0]  # (B, L, d_h)
         
-        if self.args.task == 'action_prediction':
+        if self.args.task == 'action prediction':
             hidden_states = hidden_states[:, 0, :]  # (B, d_h)
             
         return self.output_layer(hidden_states)  # (B, L, C) or  (B, C)
@@ -43,7 +43,7 @@ class BasicLightningModule(LightningModule):
             loss = self.loss_func(outputs.view(-1, self.args.num_classes), labels.view(-1))  # ()
             preds, trues = self.get_entity_results(outputs, labels)
         elif self.args.task == 'action prediction':
-            loss = self.loss_func(outputs, labels)  # ()
+            loss = self.loss_func(outputs, labels.float())  # ()
             preds, trues = self.get_action_results(outputs, labels)
             
         return {'loss': loss, 'preds': preds, 'trues': trues}
@@ -77,7 +77,7 @@ class BasicLightningModule(LightningModule):
             loss = self.loss_func(outputs.view(-1, self.args.num_classes), labels.view(-1))  # ()
             preds, trues = self.get_entity_results(outputs, labels)
         elif self.args.task == 'action prediction':
-            loss = self.loss_func(outputs, labels)  # ()
+            loss = self.loss_func(outputs, labels.float())  # ()
             preds, trues = self.get_action_results(outputs, labels)
             
         return {'valid_loss': loss, 'preds': preds, 'trues': trues}
@@ -111,7 +111,7 @@ class BasicLightningModule(LightningModule):
             loss = self.loss_func(outputs.view(-1, self.args.num_classes), labels.view(-1))  # ()
             preds, trues = self.get_entity_results(outputs, labels)
         elif self.args.task == 'action prediction':
-            loss = self.loss_func(outputs, labels)  # ()
+            loss = self.loss_func(outputs, labels.float())  # ()
             preds, trues = self.get_action_results(outputs, labels)
             
         return {'test_loss': loss, 'preds': preds, 'trues': trues}
@@ -148,7 +148,7 @@ class BasicLightningModule(LightningModule):
         return preds, trues
         
     def get_action_results(self, outputs, labels):
-        preds = (torch.sigmoid(outputs) > args.sigmoid_threshold).long()
+        preds = (torch.sigmoid(outputs) > self.args.sigmoid_threshold).long().tolist()
         trues = labels.long().tolist()
 
         return preds, trues
