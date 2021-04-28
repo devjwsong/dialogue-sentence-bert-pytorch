@@ -1,2 +1,2 @@
-# efficient-cross-encoding-pytorch
-Efficiently Cross-encoding the Multi-turn Contexts for Dialog Understanding.
+# dialogue-understanding-tasks-pytorch
+Training/Evaluating on various dialogue tasks(Intent Detection, Entity Recognition, Action Prediction) to check the performance of Transformer encoder-based models.
