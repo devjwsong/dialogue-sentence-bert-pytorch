@@ -5,7 +5,7 @@ import argparse
 import os
 
 
-data_list = ["multiwoz", "taskmaster3", "dstc2", "sim"]
+data_list = ["oos", "atis", "multiwoz", "taskmaster3", "dstc2", "sim"]
 
 
 def process_data(args, processed_dir):
@@ -17,7 +17,11 @@ def process_data(args, processed_dir):
         print("#" * 100)
         print(f"Processing {data_name}...")
         
-        if data_name == 'multiwoz':
+        if data_name == 'oos':
+            oos.process_data(args, processed_dir)
+        elif data_name == 'atis':
+            atis.process_data(args, processed_dir)
+        elif data_name == 'multiwoz':
             multiwoz.process_data(args, processed_dir)
         elif data_name == 'taskmaster3':
             taskmaster3.process_data(args, processed_dir)
@@ -32,6 +36,7 @@ if __name__=='__main__':
     parser.add_argument('--data_dir', required=True, type=str, default="data", help="The parent directory path for data files.")
     parser.add_argument('--raw_dir', required=True, type=str, default="raw", help="The directory path for raw data files.")
     parser.add_argument('--processed_dir', required=True, type=str, default="processed", help="The directory path to processed data files.")
+    parser.add_argument('--intent_dir', required=True, type=str, default="intent", help="The directory path for intent detection data files.")
     parser.add_argument('--entity_dir', required=True, type=str, default="entity", help="The directory path for entity recognition data files.")
     parser.add_argument('--action_dir', required=True, type=str, default="action", help="The directory path for action prediction data files.")
     parser.add_argument('--train_frac', required=True, type=float, default=0.8, help="The ratio of the conversations to be included in the train set.")
