@@ -1,4 +1,4 @@
-from sklearn.metrics import accuracy_score as sklearn_acc
+from sklearn.metrics import accuracy_score
 from sklearn.metrics import f1_score as sklearn_f1
 from seqeval.metrics import f1_score as seqeval_f1
 from seqeval.metrics import precision_score, recall_score
@@ -7,6 +7,43 @@ from itertools import chain
 import torch
 import numpy as np
 import random
+
+
+def intent_scores(preds, trues, intent_class_dict=None, round_num=4):
+    all_acc = accuracy_score(trues, preds)
+    all_f1 = sklearn_f1(trues, preds, average='micro')
+    scores = {'all_acc': all_acc, 'all_f1': all_f1}
+    
+    if intent_class_dict is not None:
+        oos_idx = intent_class_dict['oos']
+        oos_labels, oos_preds = [], []
+        ins_labels, ins_preds = [], []
+        
+        for i in range(len(preds)):
+            if labels[i] != oos_idx:
+                ins_preds.append(preds[i])
+                ins_labels.append(labels[i])
+
+            oos_labels.append(int(labels[i] == oos_idx))
+            oos_preds.append(int(preds[i] == oos_idx))
+            
+        ins_preds = np.array(ins_preds)
+        ins_labels = np.array(ins_labels)
+        oos_preds = np.array(oos_preds)
+        oos_labels = np.array(oos_labels)
+        ins_acc = (ins_preds == ins_labels).mean()
+        oos_acc = (oos_preds == oos_labels).mean()
+
+        # for oos samples recall = tp / (tp + fn) 
+        TP = (oos_labels & oos_preds).sum()
+        FN = ((oos_labels - oos_preds) > 0).sum()
+        oos_recall = TP / (TP+FN)
+        
+        scores['inc_acc'] = inc_acc
+        scores['oos_acc'] = oos_acc
+        scores['oos_recall'] = oos_recall
+    
+    return scores
 
 
 def entity_scores(preds, trues, class_dict, round_num=4):
