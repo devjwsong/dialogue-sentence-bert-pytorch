@@ -14,8 +14,8 @@ def process_data(args, processed_dir):
         os.makedirs(processed_dir)
         
     print("Parsing data contents...")
-    train_utters, train_intents, intent_class_dict = parse_infos("atis.train.pkl")
-    test_utters, test_intents, _ = parse_infos("atis.test.pkl")
+    train_utters, train_intents, intent_class_dict = parse_infos(data_dir, "atis.train.pkl")
+    test_utters, test_intents, _ = parse_infos(data_dir, "atis.test.pkl")
     
     print("Splitting train/valid set...")
     train_utters, train_intents, valid_utters, valid_intents = split_data(train_utters, train_intents)
