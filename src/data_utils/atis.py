@@ -91,7 +91,7 @@ def split_data(utters, intents, frac=0.9):
     
     for intent, utter_list in i2u.items():
         first_len = int(len(utter_list) * frac)
-        second_len = len(utter_len) - first_len
+        second_len = len(utter_list) - first_len
         first_utters += utter_list[:first_len]
         second_utters += utter_list[first_len:]
         first_intents += [intent] * first_len
