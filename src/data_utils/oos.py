@@ -16,9 +16,9 @@ def process_data(args, processed_dir):
     with open(f"{data_dir}/data_full.json", 'r') as f:
         data = json.load(f)
         
-    train_data = data['oos_train']
-    valid_data = data['oos_val']
-    test_data = data['oos_test']
+    train_data = data['train'] + data['oos_train']
+    valid_data = data['val'] + data['oos_val']
+    test_data = data['test'] + data['oos_test']
     
     print("Parsing data contents...")
     intent_class_dict = {}
