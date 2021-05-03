@@ -97,10 +97,10 @@ def load_dialogues(data_dir, data_type, entity_class_dict, action_class_dict, ar
                     sys_tokens = turn['system_utterance']['tokens']
                     sys_acts = turn['system_acts']
                     
-                    utter_dialogue.append(f"speaker2:{sys_utter}")
+                    utter_dialogue.append(f"sys:{sys_utter}")
                     
-                    entity_list, entity_class_dict = find_entities(domain, sys_slots, sys_tokens, entity_class_dict, speaker='speaker2')
-                    action_list, action_class_dict = find_actions(domain, sys_acts, action_class_dict, speaker='speaker2')
+                    entity_list, entity_class_dict = find_entities(domain, sys_slots, sys_tokens, entity_class_dict, speaker='sys')
+                    action_list, action_class_dict = find_actions(domain, sys_acts, action_class_dict, speaker='sys')
             
                     entity_dialogue.append(entity_list)
                     action_dialogue.append(action_list)
@@ -110,10 +110,10 @@ def load_dialogues(data_dir, data_type, entity_class_dict, action_class_dict, ar
                 usr_tokens = turn['user_utterance']['tokens']
                 usr_acts = turn['user_acts']
                 
-                utter_dialogue.append(f"speaker1:{usr_utter}")
+                utter_dialogue.append(f"usr:{usr_utter}")
                 
-                entity_list, entity_class_dict = find_entities(domain, usr_slots, usr_tokens, entity_class_dict, speaker='speaker1')
-                action_list, action_class_dict = find_actions(domain, usr_acts, action_class_dict, speaker='speaker1')
+                entity_list, entity_class_dict = find_entities(domain, usr_slots, usr_tokens, entity_class_dict, speaker='usr')
+                action_list, action_class_dict = find_actions(domain, usr_acts, action_class_dict, speaker='usr')
                 
                 entity_dialogue.append(entity_list)
                 action_dialogue.append(action_list)
@@ -136,7 +136,7 @@ def find_entities(domain, slots, tokens, entity_class_dict, speaker):
     
     for slot in slots:
         entity_type = slot['slot']
-        if f"B-{domain}-{entity_type}" not in entity_class_dict and speaker=='speaker1':
+        if f"B-{domain}-{entity_type}" not in entity_class_dict and speaker=='usr':
             entity_class_dict[f"B-{domain}-{entity_type}"] = len(entity_class_dict)
             entity_class_dict[f"I-{domain}-{entity_type}"] = len(entity_class_dict)
         
@@ -153,7 +153,7 @@ def find_actions(domain, acts, action_class_dict, speaker):
     for obj in acts:
         action = obj['type']
         
-        if action not in action_class_dict and speaker == 'speaker2':
+        if action not in action_class_dict and speaker == 'sys':
             action_class_dict[action] = len(action_class_dict)
             
         action_list.append((domain, action))

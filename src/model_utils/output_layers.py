@@ -4,19 +4,42 @@ import torch
 
 
 def load_output_layer(args):
-    if args.task == 'entity recognition':
+    if args.task == 'intent':
+        id_layer = IntentDetection(args)
+        id_layer.init_params()
+        
+        return id_layer
+    elif args.task == 'entity':
         er_layer = EntityRecognition(args)
         er_layer.init_params()
 
-        return er_layer, args
+        return er_layer
 
-    elif args.task == 'action prediction':        
+    elif args.task == 'action':        
         ap_layer = ActionPrediction(args)
         ap_layer.init_params()
 
-        return ap_layer, args
+        return ap_layer
+
+    
+class IntentDetection(nn.Module):
+    def __init__(self, args):
+        super(EntityRecognition, self).__init__()
         
+        self.hidden_size = args.hidden_size
+        self.num_classes = args.num_classes
         
+        self.linear = nn.Linear(self.hidden_size, self.num_classes)
+        
+    def forward(self, hiddens):
+        # hiddens: (B, d_h)
+        
+        return self.linear(hiddens)  # (B, C)
+    
+    def init_params(self):
+        nn.init.xavier_uniform_(self.linear.weight)    
+    
+       
 class EntityRecognition(nn.Module):
     def __init__(self, args):
         super(EntityRecognition, self).__init__()

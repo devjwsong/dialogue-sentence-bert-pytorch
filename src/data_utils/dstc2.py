@@ -77,14 +77,14 @@ def load_dialogues(data_dir, data_list, action_class_dict):
             sys_utter = turn['output']['transcript']
             usr_utter = label_turns[t]['transcription']
 
-            utter_dialogue.append(f"speaker2:{sys_utter}")
-            utter_dialogue.append(f"speaker1:{usr_utter}")
+            utter_dialogue.append(f"sys:{sys_utter}")
+            utter_dialogue.append(f"usr:{usr_utter}")
 
             sys_acts = turn['output']['dialog-acts']  # System side
             usr_acts = label_turns[t]['semantics']['json']  # User side
 
-            sys_action_list, action_class_dict = find_actions(sys_acts, action_class_dict, speaker='speaker2')
-            usr_action_list, action_class_dict = find_actions(usr_acts, action_class_dict, speaker='speaker1')
+            sys_action_list, action_class_dict = find_actions(sys_acts, action_class_dict, speaker='sys')
+            usr_action_list, action_class_dict = find_actions(usr_acts, action_class_dict, speaker='usr')
 
             action_dialogue += [sys_action_list, usr_action_list]
 
@@ -104,7 +104,7 @@ def find_actions(dialog_acts, action_class_dict, speaker):
     for obj in dialog_acts:
         action = obj['act']
 
-        if action not in action_class_dict and speaker == 'speaker2':
+        if action not in action_class_dict and speaker == 'sys':
             action_class_dict[action] = len(action_class_dict)
 
         action_list.append(("", action))

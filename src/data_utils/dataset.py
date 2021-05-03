@@ -11,7 +11,7 @@ import numpy as np
 
 
 def load_data(dataset_dir, data_prefix, utter_name, label_name):
-    assert label_name == 'entity' or label_name == 'action'
+    assert label_name == 'intent' == label_name == 'entity' or label_name == 'action'
     
     print(f"Loading {data_prefix} pickle files...")
     with open(f"{dataset_dir}/{data_prefix}_{utter_name}.pickle", 'rb') as f:
@@ -32,10 +32,10 @@ def get_context_len(utters):
 
 def flat_seq(utters, args):
     if len(utters) > 1:
-        utters[0] = [args.bos_id] + utters[0]
+        utters[0] = [args.cls_id] + utters[0]
     else:
-        utters.insert(0, [args.bos_id])
-    utters[-1] = utters[-1] + [args.eos_id]
+        utters.insert(0, [args.cls_id])
+    utters[-1] = [args.sep_id] + utters[-1] + [args.sep_id]
     
     context_len = get_context_len(utters)
     
@@ -46,9 +46,9 @@ def flat_seq(utters, args):
     utters = list(chain.from_iterable(utters))
     
     return utters, trg_spots
-    
 
-class BasicERDataset(Dataset):
+
+class IDDataset(Dataset):
     def __init__(self, args, data_prefix, class_dict, tokenizer, cached=False):
         self.input_ids = []  # (N, L)
         self.labels = []  # (N, L)
@@ -57,25 +57,68 @@ class BasicERDataset(Dataset):
         
         if not cached:
             exceed_count = 0
-            utters, labels = load_data(args.dataset_dir, data_prefix, utter_name='utter', label_name='entity')  # (N, T, L), (N, T, num_entites)
+            utters, labels = load_data(args.dataset_dir, data_prefix, utter_name='utter', label_name='intent')  # (N, L), (N)
+            
+            print(f"Processing {data_prefix} data...")
+            for u, utter in enumerate(tqdm(utters)):
+                tokens = tokenizer.tokenize(utter)
+                token_ids = [args.cls_id] + tokenizer.convert_tokens_to_ids(tokens) + [args.sep_id]
+                
+                if len(token_ids) > args.max_encoder_len:
+                    exceed_count += 1
+                else:
+                    max_len = max(max_len, len(token_ids))
+                    self.input_ids.append(token_ids)
+                    self.labels.append(class_dict[labels[u]])
+                    
+            assert len(self.input_ids) == len(self.labels)
+            
+            print(f"Exceed count: {exceed_count}")
+            print(f"Max length: {max_len}")
+            with open(f"{args.ckpt_dir}/{data_prefix}_input_ids_cached.pickle", 'wb') as f:
+                pickle.dump(self.input_ids, f)
+            with open(f"{args.ckpt_dir}/{data_prefix}_labels_cached.pickle", 'wb') as f:
+                pickle.dump(self.labels, f)   
+        else:
+            print("Loading cached data...")
+            with open(f"{args.ckpt_dir}/{data_prefix}_input_ids_cached.pickle", 'rb') as f:
+                self.input_ids = pickle.load(f)
+            with open(f"{args.ckpt_dir}/{data_prefix}_labels_cached.pickle", 'rb') as f:
+                self.labels = pickle.load(f)
+                
+        print(f"Total {len(self.input_ids)} sequences prepared.")
+        
+    def __len__(self):
+        return len(self.input_ids)
+    
+    def __getitem__(self, idx):
+        return self.input_ids[idx], self.labels[idx]
+
+
+class ERDataset(Dataset):
+    def __init__(self, args, data_prefix, class_dict, tokenizer, cached=False):
+        self.input_ids = []  # (N, L)
+        self.labels = []  # (N, L)
+        
+        max_len = 0
+        
+        if not cached:
+            exceed_count = 0
+            utters, labels = load_data(args.dataset_dir, data_prefix, utter_name='utter', label_name='entity')  # (N, T), (N, T, num_entites)
             
             print(f"Processing {data_prefix} data...")
             for d, dialogue in enumerate(tqdm(utters)):
                 utter_histories = []
                 for u, line in enumerate(dialogue):
                     speaker = line.split(':')[0]
-                    if speaker == 'speaker1':
-                        speaker_id = args.speaker1_id
-                    else:
-                        speaker_id = args.speaker2_id
                     utter = line[len(speaker)+1:].lower()
                     tokens = tokenizer.tokenize(utter)
-                    token_ids = [speaker_id] + [tokenizer.get_vocab()[token] for token in tokens]
+                    token_ids = tokenizer.convert_tokens_to_ids(tokens)
                     utter_histories.append(token_ids)
                     if len(utter_histories) > args.max_turns:
                         utter_histories = utter_histories[1:]
 
-                    if speaker_id == args.speaker1_id:
+                    if speaker == 'usr':
                         utter_labels = ['O' for i in range(len(tokens))]
                         entity_infos = labels[d][u]
                         entity_infos.sort(key=lambda x:x[2])
@@ -145,7 +188,7 @@ class BasicERDataset(Dataset):
         return labels
     
 
-class BasicAPDataset(Dataset):
+class APDataset(Dataset):
     def __init__(self, args, data_prefix, class_dict, tokenizer, cached=False):
         self.input_ids = []  # (N, L)
         self.labels = []  # (N, num_actions)
@@ -154,25 +197,21 @@ class BasicAPDataset(Dataset):
         
         if not cached:
             exceed_count = 0
-            utters, labels = load_data(args.dataset_dir, data_prefix, utter_name='utter', label_name='action')  # (N, T, L), (N, T, num_actions)
+            utters, labels = load_data(args.dataset_dir, data_prefix, utter_name='utter', label_name='action')  # (N, T), (N, T, num_actions)
             
             print(f"Processing {data_prefix} data...")
             for d, dialogue in enumerate(tqdm(utters)):
                 utter_histories = []
                 for u, line in enumerate(dialogue):
                     speaker = line.split(':')[0]
-                    if speaker == 'speaker1':
-                        speaker_id = args.speaker1_id
-                    else:
-                        speaker_id = args.speaker2_id
                     utter = line[len(speaker)+1:]
                     tokens = tokenizer.tokenize(utter)
-                    token_ids = [speaker_id] + [tokenizer.get_vocab()[token] for token in tokens]
+                    token_ids = tokenizer.convert_tokens_to_ids(tokens)
                     utter_histories.append(token_ids)
                     if len(utter_histories) > args.max_turns:
                         utter_histories = utter_histories[1:]
 
-                    if speaker_id == args.speaker1_id and u < len(dialogue)-1:
+                    if speaker == 'usr' and u < len(dialogue)-1:
                         actions = labels[d][u+1]
                         action_ids = [class_dict[action[1]] for action in actions]
                         target = F.one_hot(torch.LongTensor(action_ids), num_classes=args.num_classes)
@@ -212,6 +251,22 @@ class BasicAPDataset(Dataset):
         
     def __getitem__(self, idx):
         return self.input_ids[idx], self.labels[idx]
+    
+
+class IntentPadCollate():
+    def __init__(self, input_pad_id):
+        self.input_pad_id = input_pad_id
+
+    def pad_collate(self, batch):
+        input_ids, labels = [], []
+        for idx, pair in enumerate(batch):
+            input_ids.append(torch.LongTensor(pair[0]))
+            labels.append(pair[1])
+
+        padded_input_ids = torch.nn.utils.rnn.pad_sequence(input_ids, batch_first=True, padding_value=self.input_pad_id)
+        labels = torch.LongTensor(labels)
+        
+        return padded_input_ids.contiguous(), labels.contiguous()
     
     
 class EntityPadCollate():

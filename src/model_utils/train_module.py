@@ -10,39 +10,52 @@ from tensorboardX import SummaryWriter
 import torch
 
 
-class BasicLightningModule(LightningModule):
-    def __init__(self, args):
+loss_funcs = {
+    'intent': nn.CrossEntropyLoss(),
+    'entity': nn.CrossEntropyLoss(ignore_index=-1),
+    'action': nn.BCEwithLogitsLoss()
+}
+
+
+class TrainModule(LightningModule):
+    def __init__(self, args, encoder):
         super().__init__()
         
         self.args = args
         self.save_hyperparameters(args)
         
-        fix_seed(self.args.model_seed)
-        self.encoder, self.args = load_encoder(self.args)
+        self.encoder = encoder
+        self.output_layer = load_output_layer(self.args)
         
-        fix_seed(self.args.model_seed)
-        self.output_layer, self.args = load_output_layer(self.args)
-        
-        self.loss_func = nn.CrossEntropyLoss(ignore_index=-1) if self.args.task == 'entity recognition' else nn.BCEWithLogitsLoss()
+        self.loss_func = loss_funcs[args.task]
         
     def forward(self, input_ids, padding_masks=None):  # input_ids: (B, L), padding_masks: (B, L)
         hidden_states = self.encoder(input_ids=input_ids, attention_mask=padding_masks)[0]  # (B, L, d_h)
         
-        if self.args.task == 'action prediction':
+        if self.args.task != 'entity':
             hidden_states = hidden_states[:, 0, :]  # (B, d_h)
             
         return self.output_layer(hidden_states)  # (B, L, C) or  (B, C)
     
+    def make_masks(self, input_ids):
+        if 'student' in args.model_name:
+            return (input_ids == self.args.pad_id)  # (B, L)
+        else:
+            return (input_ids != self.args.pad_id).float()  # (B, L)
+    
     def training_step(self, batch, batch_idx):
         input_ids, labels = batch  # input_ids: (B, L), labels: (B, L, C) or (B, C)
-        padding_masks = (input_ids != self.args.pad_id).float()  # (B, L)
+        padding_masks = self.make_masks(input_ids)  # (B, L)
         
         outputs = self.forward(input_ids, padding_masks)  # (B, L ,C) or (B, C)
         
-        if self.args.task == 'entity recognition':
+        if self.args.task == 'intent':
+            loss = self.loss_func(outputs, labels)  # ()
+            preds, trues = self.get_intent_results(outputs, labels)
+        elif self.args.task == 'entity':
             loss = self.loss_func(outputs.view(-1, self.args.num_classes), labels.view(-1))  # ()
             preds, trues = self.get_entity_results(outputs, labels)
-        elif self.args.task == 'action prediction':
+        elif self.args.task == 'action':
             loss = self.loss_func(outputs, labels.float())  # ()
             preds, trues = self.get_action_results(outputs, labels)
             
@@ -58,9 +71,14 @@ class BasicLightningModule(LightningModule):
             train_preds += result['preds']
             train_trues += result['trues']
         
-        if self.args.task == 'entity recognition':
+        if self.args.task == 'intent':
+            intent_class_dict = None
+            if self.dataset == 'oos':
+                intent_class_dict = self.args.class_dict
+            scores = intent_scores(train_preds, train_trues, intent_class_dict, round_num=4)
+        elif self.args.task == 'entity':
             scores = entity_scores(train_preds, train_trues, self.args.class_dict, round_num=4)
-        elif self.args.task == 'action prediction':
+        elif self.args.task == 'action':
             scores = action_scores(train_preds, train_trues, round_num=4)
         
         self.log('train_loss', np.mean(train_losses), on_step=False, on_epoch=True, prog_bar=True, logger=True)
@@ -69,14 +87,17 @@ class BasicLightningModule(LightningModule):
             
     def validation_step(self, batch, batch_idx):
         input_ids, labels = batch  # input_ids: (B, L), labels: (B, L, C) or (B, C)
-        padding_masks = (input_ids != self.args.pad_id).float()  # (B, L)
+        padding_masks = self.make_masks(input_ids)  # (B, L)
         
         outputs = self.forward(input_ids, padding_masks)  # (B, L ,C) or (B, C)
         
-        if self.args.task == 'entity recognition':
+        if self.args.task == 'intent':
+            loss = self.loss_func(outputs, labels)  # ()
+            preds, trues = self.get_intent_results(outputs, labels)  
+        elif self.args.task == 'entity':
             loss = self.loss_func(outputs.view(-1, self.args.num_classes), labels.view(-1))  # ()
             preds, trues = self.get_entity_results(outputs, labels)
-        elif self.args.task == 'action prediction':
+        elif self.args.task == 'action':
             loss = self.loss_func(outputs, labels.float())  # ()
             preds, trues = self.get_action_results(outputs, labels)
             
@@ -92,10 +113,15 @@ class BasicLightningModule(LightningModule):
             valid_preds += result['preds']
             valid_trues += result['trues']
         
-        if self.args.task == 'entity recognition':
-            scores = entity_scores(valid_preds, valid_trues, self.args.class_dict, round_num=4)
-        elif self.args.task == 'action prediction':
-            scores = action_scores(valid_preds, valid_trues, round_num=4)
+        if self.args.task == 'intent':
+            intent_class_dict = None
+            if self.dataset == 'oos':
+                intent_class_dict = self.args.class_dict
+            scores = intent_scores(train_preds, train_trues, intent_class_dict, round_num=4)
+        elif self.args.task == 'entity':
+            scores = entity_scores(train_preds, train_trues, self.args.class_dict, round_num=4)
+        elif self.args.task == 'action':
+            scores = action_scores(train_preds, train_trues, round_num=4)
         
         self.log('valid_loss', np.mean(valid_losses), on_step=False, on_epoch=True, prog_bar=True, logger=True)
         for metric, value in scores.items():
@@ -103,14 +129,17 @@ class BasicLightningModule(LightningModule):
             
     def test_step(self, batch, batch_idx):
         input_ids, labels = batch  # input_ids: (B, L), labels: (B, L, C) or (B, C)
-        padding_masks = (input_ids != self.args.pad_id).float()  # (B, L)
+        padding_masks = self.make_masks(input_ids)  # (B, L)
         
         outputs = self.forward(input_ids, padding_masks)  # (B, L ,C) or (B, C)
         
-        if self.args.task == 'entity recognition':
+        if self.args.task == 'intent':
+            loss = self.loss_func(outputs, labels)  # ()
+            preds, trues = self.get_intent_results(outputs, labels)
+        elif self.args.task == 'entity':
             loss = self.loss_func(outputs.view(-1, self.args.num_classes), labels.view(-1))  # ()
             preds, trues = self.get_entity_results(outputs, labels)
-        elif self.args.task == 'action prediction':
+        elif self.args.task == 'action':
             loss = self.loss_func(outputs, labels.float())  # ()
             preds, trues = self.get_action_results(outputs, labels)
             
@@ -126,14 +155,29 @@ class BasicLightningModule(LightningModule):
             test_preds += result['preds']
             test_trues += result['trues']
         
-        if self.args.task == 'entity recognition':
-            scores = entity_scores(test_preds, test_trues, self.args.class_dict, round_num=4)
-        elif self.args.task == 'action prediction':
-            scores = action_scores(test_preds, test_trues, round_num=4)
+        if self.args.task == 'intent':
+            intent_class_dict = None
+            if self.dataset == 'oos':
+                intent_class_dict = self.args.class_dict
+            scores = intent_scores(train_preds, train_trues, intent_class_dict, round_num=4)
+        elif self.args.task == 'entity':
+            scores = entity_scores(train_preds, train_trues, self.args.class_dict, round_num=4)
+        elif self.args.task == 'action':
+            scores = action_scores(train_preds, train_trues, round_num=4)
         
         self.log('test_loss', np.mean(test_losses), on_step=False, on_epoch=True, prog_bar=True, logger=True)
         for metric, value in scores.items():
             self.log(f"test_{metric}", value, on_step=False, on_epoch=True, prog_bar=True, logger=True)
+    
+    def get_intent_results(self, outputs, labels):
+        _, preds = torch.max(outputs, dim=-1)  # (B)
+        
+        preds = preds.tolist()
+        trues = trues.tolist()
+        
+        assert len(preds) == len(trues)
+        
+        return preds, trues
     
     def get_entity_results(self, outputs, labels):
         _, preds = torch.max(outputs, dim=-1)  # (B, L)
@@ -144,12 +188,16 @@ class BasicLightningModule(LightningModule):
         spots = [(label.index(True), len(label)-list(reversed(label)).index(True)) for label in true_labels]
         preds = [pred[spots[p][0]:spots[p][1]] for p, pred in enumerate(preds)]
         trues = [true[spots[t][0]:spots[t][1]] for t, true in enumerate(trues)]
+        
+        assert len(preds) == len(trues)
 
         return preds, trues
         
     def get_action_results(self, outputs, labels):
         preds = (torch.sigmoid(outputs) > self.args.sigmoid_threshold).long().tolist()
         trues = labels.long().tolist()
+        
+        assert len(preds) == len(trues)
 
         return preds, trues
     

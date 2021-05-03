@@ -29,7 +29,7 @@ def process_data(args, processed_dir):
             utter_dialogue = []
             entity_dialogue = []
             for turn in turns:
-                speaker = 'speaker1' if turn['speaker'] == 'user' else 'speaker2'
+                speaker = 'usr' if turn['speaker'] == 'user' else 'sys'
                 utter = turn['text']
                 utter_dialogue.append(f"{speaker}:{utter}")
                 

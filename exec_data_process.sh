@@ -2,6 +2,7 @@ python src/data_process.py \
     --data_dir="data" \
     --raw_dir="raw" \
     --processed="processed" \
+    --intent_dir="intent" \
     --entity_dir="entity" \
     --action_dir="action" \
     --train_frac=0.8 \

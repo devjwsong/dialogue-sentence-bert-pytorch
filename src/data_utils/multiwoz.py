@@ -24,7 +24,7 @@ def process_data(args, processed_dir):
     with open(f"{data_dir}/data.json", 'r') as f:
         data = json.load(f)
    
-    print("Processing dialogues...")
+    print("Parsing dialogues...")
     utter_dialogues = []
     entity_dialogues = []
     action_dialogues = []
@@ -41,9 +41,9 @@ def process_data(args, processed_dir):
             span_info = turn['span_info']
             
             if len(metadata) == 0:  # User
-                speaker = 'speaker1'
+                speaker = 'usr'
             else:  # System
-                speaker = 'speaker2'
+                speaker = 'sys'
                 
             entity_list, entity_class_dict = find_entities(span_info, entity_class_dict, speaker)
             action_list, action_class_dict = find_actions(dialog_act, action_class_dict, speaker)
@@ -154,7 +154,7 @@ def find_entities(span_info, entity_class_dict, speaker):
         end = span[4]
         
         entity_type = f"{domain}-{slot_type}"
-        if f"B-{entity_type}" not in entity_class_dict and speaker == 'speaker1':
+        if f"B-{entity_type}" not in entity_class_dict and speaker == 'usr':
             entity_class_dict[f"B-{entity_type}"] = len(entity_class_dict)
             entity_class_dict[f"I-{entity_type}"] = len(entity_class_dict)
             
@@ -168,7 +168,7 @@ def find_actions(dialog_act, action_class_dict, speaker):
     for act, _ in dialog_act.items():
         domain = act.split('-')[0]
         action = act.split('-')[1]
-        if action not in action_class_dict and speaker == 'speaker2':
+        if action not in action_class_dict and speaker == 'sys':
             action_class_dict[action] = len(action_class_dict)
             
         action_list.append((domain, action))
