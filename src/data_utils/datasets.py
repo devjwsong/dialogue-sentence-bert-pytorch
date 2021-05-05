@@ -11,7 +11,7 @@ import numpy as np
 
 
 def load_data(dataset_dir, data_prefix, utter_name, label_name):
-    assert label_name == 'intent' == label_name == 'entity' or label_name == 'action'
+    assert label_name == 'intents' or label_name == 'entities' or label_name == 'actions'
     
     print(f"Loading {data_prefix} pickle files...")
     with open(f"{dataset_dir}/{data_prefix}_{utter_name}.pickle", 'rb') as f:
@@ -49,15 +49,15 @@ def flat_seq(utters, args):
 
 
 class IDDataset(Dataset):
-    def __init__(self, args, data_prefix, class_dict, tokenizer, cached=False):
+    def __init__(self, args, data_prefix, tokenizer):
         self.input_ids = []  # (N, L)
         self.labels = []  # (N, L)
         
         max_len = 0
         
-        if not cached:
+        if not args.cached:
             exceed_count = 0
-            utters, labels = load_data(args.dataset_dir, data_prefix, utter_name='utter', label_name='intent')  # (N, L), (N)
+            utters, labels = load_data(args.dataset_dir, data_prefix, utter_name='utters', label_name='intents')  # (N, L), (N)
             
             print(f"Processing {data_prefix} data...")
             for u, utter in enumerate(tqdm(utters)):
@@ -69,21 +69,21 @@ class IDDataset(Dataset):
                 else:
                     max_len = max(max_len, len(token_ids))
                     self.input_ids.append(token_ids)
-                    self.labels.append(class_dict[labels[u]])
+                    self.labels.append(args.class_dict[labels[u]])
                     
             assert len(self.input_ids) == len(self.labels)
             
             print(f"Exceed count: {exceed_count}")
             print(f"Max length: {max_len}")
-            with open(f"{args.ckpt_dir}/{data_prefix}_input_ids_cached.pickle", 'wb') as f:
+            with open(f"{args.save_dir}/{data_prefix}_input_ids_cached.pickle", 'wb') as f:
                 pickle.dump(self.input_ids, f)
-            with open(f"{args.ckpt_dir}/{data_prefix}_labels_cached.pickle", 'wb') as f:
-                pickle.dump(self.labels, f)   
+            with open(f"{args.save_dir}/{data_prefix}_labels_cached.pickle", 'wb') as f:
+                pickle.dump(self.labels, f)
         else:
             print("Loading cached data...")
-            with open(f"{args.ckpt_dir}/{data_prefix}_input_ids_cached.pickle", 'rb') as f:
+            with open(f"{args.save_dir}/{data_prefix}_input_ids_cached.pickle", 'rb') as f:
                 self.input_ids = pickle.load(f)
-            with open(f"{args.ckpt_dir}/{data_prefix}_labels_cached.pickle", 'rb') as f:
+            with open(f"{args.save_dir}/{data_prefix}_labels_cached.pickle", 'rb') as f:
                 self.labels = pickle.load(f)
                 
         print(f"Total {len(self.input_ids)} sequences prepared.")
@@ -96,15 +96,15 @@ class IDDataset(Dataset):
 
 
 class ERDataset(Dataset):
-    def __init__(self, args, data_prefix, class_dict, tokenizer, cached=False):
+    def __init__(self, args, data_prefix, tokenizer):
         self.input_ids = []  # (N, L)
         self.labels = []  # (N, L)
         
         max_len = 0
         
-        if not cached:
+        if not args.cached:
             exceed_count = 0
-            utters, labels = load_data(args.dataset_dir, data_prefix, utter_name='utter', label_name='entity')  # (N, T), (N, T, num_entites)
+            utters, labels = load_data(args.dataset_dir, data_prefix, utter_name='utters', label_name='entities')  # (N, T), (N, T, num_entites)
             
             print(f"Processing {data_prefix} data...")
             for d, dialogue in enumerate(tqdm(utters)):
@@ -131,7 +131,7 @@ class ERDataset(Dataset):
 
                         assert len(tokens) == len(utter_labels)
 
-                        utter_labels = [class_dict[label] for label in utter_labels]
+                        utter_labels = [args.class_dict[label] for label in utter_labels]
 
                         input_ids, trg_spots = flat_seq(copy.deepcopy(utter_histories), args)
                         if input_ids is not None:
@@ -149,15 +149,15 @@ class ERDataset(Dataset):
             
             print(f"Exceed count: {exceed_count}")
             print(f"Max length: {max_len}")
-            with open(f"{args.ckpt_dir}/{data_prefix}_input_ids_cached.pickle", 'wb') as f:
+            with open(f"{args.save_dir}/{data_prefix}_input_ids_cached.pickle", 'wb') as f:
                 pickle.dump(self.input_ids, f)
-            with open(f"{args.ckpt_dir}/{data_prefix}_labels_cached.pickle", 'wb') as f:
+            with open(f"{args.save_dir}/{data_prefix}_labels_cached.pickle", 'wb') as f:
                 pickle.dump(self.labels, f)
         else:
             print("Loading cached data...")
-            with open(f"{args.ckpt_dir}/{data_prefix}_input_ids_cached.pickle", 'rb') as f:
+            with open(f"{args.save_dir}/{data_prefix}_input_ids_cached.pickle", 'rb') as f:
                 self.input_ids = pickle.load(f)
-            with open(f"{args.ckpt_dir}/{data_prefix}_labels_cached.pickle", 'rb') as f:
+            with open(f"{args.save_dir}/{data_prefix}_labels_cached.pickle", 'rb') as f:
                 self.labels = pickle.load(f)
         
         print(f"Total {len(self.input_ids)} sequences prepared.")
@@ -189,15 +189,15 @@ class ERDataset(Dataset):
     
 
 class APDataset(Dataset):
-    def __init__(self, args, data_prefix, class_dict, tokenizer, cached=False):
+    def __init__(self, args, data_prefix, tokenizer):
         self.input_ids = []  # (N, L)
         self.labels = []  # (N, num_actions)
         
         max_len = 0
         
-        if not cached:
+        if not args.cached:
             exceed_count = 0
-            utters, labels = load_data(args.dataset_dir, data_prefix, utter_name='utter', label_name='action')  # (N, T), (N, T, num_actions)
+            utters, labels = load_data(args.dataset_dir, data_prefix, utter_name='utters', label_name='actions')  # (N, T), (N, T, num_actions)
             
             print(f"Processing {data_prefix} data...")
             for d, dialogue in enumerate(tqdm(utters)):
@@ -213,7 +213,7 @@ class APDataset(Dataset):
 
                     if speaker == 'usr' and u < len(dialogue)-1:
                         actions = labels[d][u+1]
-                        action_ids = [class_dict[action[1]] for action in actions]
+                        action_ids = [args.class_dict[action[1]] for action in actions]
                         target = F.one_hot(torch.LongTensor(action_ids), num_classes=args.num_classes)
                         target = (target.sum(0) > 0).long().tolist()
 
@@ -233,15 +233,15 @@ class APDataset(Dataset):
             
             print(f"Exceed count: {exceed_count}")
             print(f"Max length: {max_len}")
-            with open(f"{args.ckpt_dir}/{data_prefix}_input_ids_cached.pickle", 'wb') as f:
+            with open(f"{args.save_dir}/{data_prefix}_input_ids_cached.pickle", 'wb') as f:
                 pickle.dump(self.input_ids, f)
-            with open(f"{args.ckpt_dir}/{data_prefix}_labels_cached.pickle", 'wb') as f:
+            with open(f"{args.save_dir}/{data_prefix}_labels_cached.pickle", 'wb') as f:
                 pickle.dump(self.labels, f)
         else:
             print("Loading cached data...")
-            with open(f"{args.ckpt_dir}/{data_prefix}_input_ids_cached.pickle", 'rb') as f:
+            with open(f"{args.save_dir}/{data_prefix}_input_ids_cached.pickle", 'rb') as f:
                 self.input_ids = pickle.load(f)
-            with open(f"{args.ckpt_dir}/{data_prefix}_labels_cached.pickle", 'rb') as f:
+            with open(f"{args.save_dir}/{data_prefix}_labels_cached.pickle", 'rb') as f:
                 self.labels = pickle.load(f)
         
         print(f"Total {len(self.input_ids)} sequences prepared.")

@@ -121,10 +121,10 @@ def split_data(dialogues, train_frac=0.75):
 
 
 def save_file(processed_dir, prefix, utter_dialogues, action_dialogues):
-    with open(f"{processed_dir}/{prefix}_utter.pickle", 'wb') as f:
+    with open(f"{processed_dir}/{prefix}_utters.pickle", 'wb') as f:
         pickle.dump(utter_dialogues, f)
         
-    with open(f"{processed_dir}/{prefix}_action.pickle", 'wb') as f:
+    with open(f"{processed_dir}/{prefix}_actions.pickle", 'wb') as f:
         pickle.dump(action_dialogues, f)
         
         

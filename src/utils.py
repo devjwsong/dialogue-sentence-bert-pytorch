@@ -12,36 +12,36 @@ import random
 def intent_scores(preds, trues, intent_class_dict=None, round_num=4):
     all_acc = accuracy_score(trues, preds)
     all_f1 = sklearn_f1(trues, preds, average='micro')
-    scores = {'all_acc': all_acc, 'all_f1': all_f1}
+    scores = {'all_acc': round(all_acc, round_num), 'all_f1': round(all_f1, round_num)}
     
     if intent_class_dict is not None:
         oos_idx = intent_class_dict['oos']
-        oos_labels, oos_preds = [], []
-        ins_labels, ins_preds = [], []
+        oos_trues, oos_preds = [], []
+        ins_trues, ins_preds = [], []
         
         for i in range(len(preds)):
-            if labels[i] != oos_idx:
+            if trues[i] != oos_idx:
                 ins_preds.append(preds[i])
-                ins_labels.append(labels[i])
+                ins_trues.append(trues[i])
 
-            oos_labels.append(int(labels[i] == oos_idx))
+            oos_trues.append(int(trues[i] == oos_idx))
             oos_preds.append(int(preds[i] == oos_idx))
             
         ins_preds = np.array(ins_preds)
-        ins_labels = np.array(ins_labels)
+        ins_trues = np.array(ins_trues)
         oos_preds = np.array(oos_preds)
-        oos_labels = np.array(oos_labels)
-        ins_acc = (ins_preds == ins_labels).mean()
-        oos_acc = (oos_preds == oos_labels).mean()
+        oos_trues = np.array(oos_trues)
+        ins_acc = (ins_preds == ins_trues).mean()
+        oos_acc = (oos_preds == oos_trues).mean()
 
         # for oos samples recall = tp / (tp + fn) 
-        TP = (oos_labels & oos_preds).sum()
-        FN = ((oos_labels - oos_preds) > 0).sum()
+        TP = (oos_trues & oos_preds).sum()
+        FN = ((oos_trues - oos_preds) > 0).sum()
         oos_recall = TP / (TP+FN)
         
-        scores['inc_acc'] = inc_acc
-        scores['oos_acc'] = oos_acc
-        scores['oos_recall'] = oos_recall
+        scores['ins_acc'] = round(ins_acc, round_num)
+        scores['oos_acc'] = round(oos_acc, round_num)
+        scores['oos_recall'] = round(oos_recall, round_num)
     
     return scores
 

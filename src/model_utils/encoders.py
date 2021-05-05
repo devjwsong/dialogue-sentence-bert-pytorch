@@ -1,4 +1,5 @@
 from transformers import *
+from torch import nn
 
 import json
 import os
@@ -54,7 +55,8 @@ def load_teacher(args):
     config = attrs[1].from_pretrained(model_path)
     tokenizer = attrs[2].from_pretrained(model_path)
     model = attrs[3].from_pretrained(model_path)
-    
+    args.hidden_size = model.config.hidden_size
+
     if 'teacher' in args.model_name:
         model.load_state_dict(f"{args.ckpt_dir}/{args.model_name}/{args.ckpt_name}")
         

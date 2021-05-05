@@ -2,8 +2,9 @@ from transformers import *
 from tqdm import tqdm
 from torch.utils.data import DataLoader
 from torch import nn
-from model_utils.basic_module import *
-from data_utils.basic_datasets import *
+from model_utils.train_module import *
+from model_utils.encoders import setting
+from data_utils.datasets import *
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import ModelCheckpoint
 from utils import *
@@ -22,33 +23,35 @@ def run(args):
     args.dataset_dir = f"{args.data_dir}/{args.processed_dir}/{args.dataset}"
     assert os.path.isdir(args.dataset_dir)
     
-    save_dir = f"{args.ckpt_dir}/{args.task}/{args.dataset}/{args.model_name}"
+    args.save_dir = f"{args.ckpt_dir}/{args.task}/{args.dataset}/{args.model_name}"
     if args.task == 'entity' or args.task == 'action':
-        save_dir = f"{save_dir}/{args.max_turns}"
+        args.save_dir = f"{args.save_dir}/{args.max_turns}"
     
-    if not os.path.isdir(save_dir):
-        os.makedirs(save_dir)
+    if not os.path.isdir(args.save_dir):
+        os.makedirs(args.save_dir)
+
+    # Tokenizer & Model
+    args, config, tokenizer, model = setting(args)
     
-    with open(f"{args.dataset_dir}/{task_desc}_{args.class_dict_name}.json", 'r') as f:
+    with open(f"{args.dataset_dir}/{args.task}_{args.class_dict_name}.json", 'r') as f:
         args.class_dict = json.load(f)
     args.num_classes = len(args.class_dict)
     
     print("Loading datasets...")
     # For data loading
-    cached = True if args.cached=='yes' else False
     if args.task == 'intent':
-        train_set = IDDataset(args, args.train_prefix, args.class_dict, tokenizer, cached=cached)
-        valid_set = IDDataset(args, args.valid_prefix, args.class_dict, tokenizer, cached=cached)
-        test_set = IDDataset(args, args.test_prefix, args.class_dict, tokenizer, cached=cached)
+        train_set = IDDataset(args, args.train_prefix, tokenizer)
+        valid_set = IDDataset(args, args.valid_prefix, tokenizer)
+        test_set = IDDataset(args, args.test_prefix, tokenizer)
     elif args.task == 'entity':
-        train_set = ERDataset(args, args.train_prefix, args.class_dict, tokenizer, cached=cached)
-        valid_set = ERDataset(args, args.valid_prefix, args.class_dict, tokenizer, cached=cached)
-        test_set = ERDataset(args, args.test_prefix, args.class_dict, tokenizer, cached=cached)
+        train_set = ERDataset(args, args.train_prefix, tokenizer)
+        valid_set = ERDataset(args, args.valid_prefix, tokenizer)
+        test_set = ERDataset(args, args.test_prefix, tokenizer)
     elif args.task == 'action':
-        train_set = APDataset(args, args.train_prefix, args.class_dict, tokenizer, cached=cached)
-        valid_set = APDataset(args, args.valid_prefix, args.class_dict, tokenizer, cached=cached)
-        test_set = APDataset(args, args.test_prefix, args.class_dict, tokenizer, cached=cached)
-    
+        train_set = APDataset(args, args.train_prefix, tokenizer)
+        valid_set = APDataset(args, args.valid_prefix, tokenizer)
+        test_set = APDataset(args, args.test_prefix, tokenizer)
+
     args.total_train_steps = int(len(train_set) / args.batch_size * args.num_epochs)
     args.warmup_steps = int(args.total_train_steps * args.warmup_prop)
     
@@ -57,7 +60,7 @@ def run(args):
     
     # Model setting
     print(f"Loading training module for {args.task}...")       
-    module = TrainModule(args)
+    module = TrainModule(args, model)
     
     # Re-seed random seed for data shuffle
     fix_seed(args.seed)
@@ -89,7 +92,7 @@ def run(args):
         monitor = "valid_micro_f1"
     
     checkpoint_callback = ModelCheckpoint(
-        dirpath =save_dir,
+        dirpath=args.save_dir,
         filename=filename,
         verbose=True,
         monitor=monitor,
@@ -108,11 +111,11 @@ def run(args):
     )
     
     print("Train starts.")
-    trainer.fit(model=pl_model, train_dataloader=train_loader, val_dataloaders=valid_loader)
+    trainer.fit(model=module, train_dataloader=train_loader, val_dataloaders=valid_loader)
     print("Training done.")
     
     print("Test starts.")
-    trainer.test(model=pl_model, test_dataloaders=test_loader, ckpt_path='best')
+    trainer.test(model=module, test_dataloaders=test_loader, ckpt_path='best')
     
     print("GOOD BYE.")
     
@@ -138,7 +141,7 @@ if __name__=='__main__':
     parser.add_argument('--warmup_prop', type=float, default=0.0)
     parser.add_argument('--max_grad_norm', type=float, default=1.0, help="The max gradient for gradient clipping.")
     parser.add_argument('--sigmoid_threshold', required=True, type=float, default=0.0, help="The sigmoid threshold for action prediction task.")
-    parser.add_argument('--cached', required=True, type=str, default='no', help="Using the cached data or not?")
+    parser.add_argument('--cached', action="store_true", help="Using the cached data or not?")
     parser.add_argument('--seed', required=True, type=int, default=0, help="The seed number.")
     parser.add_argument('--model_name', required=True, type=str, default='bert', help="The encoder model to test.")
     parser.add_argument('--ckpt_name', required=False, type=str, help="If only training from a specific checkpoint...")

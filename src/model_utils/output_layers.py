@@ -24,7 +24,7 @@ def load_output_layer(args):
     
 class IntentDetection(nn.Module):
     def __init__(self, args):
-        super(EntityRecognition, self).__init__()
+        super(IntentDetection, self).__init__()
         
         self.hidden_size = args.hidden_size
         self.num_classes = args.num_classes

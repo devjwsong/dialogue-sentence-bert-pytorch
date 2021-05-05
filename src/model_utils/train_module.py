@@ -1,23 +1,22 @@
 from torch import nn as nn
 from torch.nn import functional as F
-from pytorch_lightning.core.lightning import LightningModule
 from transformers import get_linear_schedule_with_warmup
 from .encoders import *
 from .output_layers import *
 from utils import *
-from tensorboardX import SummaryWriter
 
 import torch
+import pytorch_lightning as pl
 
 
 loss_funcs = {
     'intent': nn.CrossEntropyLoss(),
     'entity': nn.CrossEntropyLoss(ignore_index=-1),
-    'action': nn.BCEwithLogitsLoss()
+    'action': nn.BCEWithLogitsLoss()
 }
 
 
-class TrainModule(LightningModule):
+class TrainModule(pl.LightningModule):
     def __init__(self, args, encoder):
         super().__init__()
         
@@ -38,7 +37,7 @@ class TrainModule(LightningModule):
         return self.output_layer(hidden_states)  # (B, L, C) or  (B, C)
     
     def make_masks(self, input_ids):
-        if 'student' in args.model_name:
+        if 'student' in self.args.model_name:
             return (input_ids == self.args.pad_id)  # (B, L)
         else:
             return (input_ids != self.args.pad_id).float()  # (B, L)
@@ -73,7 +72,7 @@ class TrainModule(LightningModule):
         
         if self.args.task == 'intent':
             intent_class_dict = None
-            if self.dataset == 'oos':
+            if self.args.dataset == 'oos':
                 intent_class_dict = self.args.class_dict
             scores = intent_scores(train_preds, train_trues, intent_class_dict, round_num=4)
         elif self.args.task == 'entity':
@@ -115,13 +114,13 @@ class TrainModule(LightningModule):
         
         if self.args.task == 'intent':
             intent_class_dict = None
-            if self.dataset == 'oos':
+            if self.args.dataset == 'oos':
                 intent_class_dict = self.args.class_dict
-            scores = intent_scores(train_preds, train_trues, intent_class_dict, round_num=4)
+            scores = intent_scores(valid_preds, valid_trues, intent_class_dict, round_num=4)
         elif self.args.task == 'entity':
-            scores = entity_scores(train_preds, train_trues, self.args.class_dict, round_num=4)
+            scores = entity_scores(valid_preds, valid_trues, self.args.class_dict, round_num=4)
         elif self.args.task == 'action':
-            scores = action_scores(train_preds, train_trues, round_num=4)
+            scores = action_scores(valid_preds, valid_trues, round_num=4)
         
         self.log('valid_loss', np.mean(valid_losses), on_step=False, on_epoch=True, prog_bar=True, logger=True)
         for metric, value in scores.items():
@@ -157,13 +156,13 @@ class TrainModule(LightningModule):
         
         if self.args.task == 'intent':
             intent_class_dict = None
-            if self.dataset == 'oos':
+            if self.args.dataset == 'oos':
                 intent_class_dict = self.args.class_dict
-            scores = intent_scores(train_preds, train_trues, intent_class_dict, round_num=4)
+            scores = intent_scores(test_preds, test_trues, intent_class_dict, round_num=4)
         elif self.args.task == 'entity':
-            scores = entity_scores(train_preds, train_trues, self.args.class_dict, round_num=4)
+            scores = entity_scores(test_preds, test_trues, self.args.class_dict, round_num=4)
         elif self.args.task == 'action':
-            scores = action_scores(train_preds, train_trues, round_num=4)
+            scores = action_scores(test_preds, test_trues, round_num=4)
         
         self.log('test_loss', np.mean(test_losses), on_step=False, on_epoch=True, prog_bar=True, logger=True)
         for metric, value in scores.items():
@@ -173,7 +172,7 @@ class TrainModule(LightningModule):
         _, preds = torch.max(outputs, dim=-1)  # (B)
         
         preds = preds.tolist()
-        trues = trues.tolist()
+        trues = labels.tolist()
         
         assert len(preds) == len(trues)
         
