@@ -30,8 +30,6 @@ def run(args):
     if not os.path.isdir(args.save_dir):
         os.makedirs(args.save_dir)
 
-    seed_everything(args.seed)
-
     # Tokenizer & Model
     args, config, tokenizer, model = setting(args)
 
@@ -58,7 +56,7 @@ def run(args):
     args.warmup_steps = int(args.total_train_steps * args.warmup_prop)
     
     # Random seed fixing for model
-    seed_everything(args.seed)
+    seed_everything(args.seed, workers=True)
     
     # Model setting
     print(f"Loading training module for {args.task}...")       
@@ -75,7 +73,7 @@ def run(args):
         ppd = ActionPadCollate(input_pad_id=input_pad_id)
     
     # Reset random seed for data shuffle
-    seed_everything(args.seed)
+    seed_everything(args.seed, workers=True)
 
     train_loader = DataLoader(train_set, collate_fn=ppd.pad_collate, batch_size=args.batch_size, shuffle=True, num_workers=args.num_workers, pin_memory=True)
     valid_loader = DataLoader(valid_set, collate_fn=ppd.pad_collate, batch_size=args.batch_size, num_workers=args.num_workers, pin_memory=True)
@@ -98,14 +96,12 @@ def run(args):
         filename=filename,
         verbose=True,
         monitor=monitor,
-        mode='max'
+        mode='max',
+        every_n_val_epochs=1,
     )
-
-    seed_everything(args.seed)
     
     # Trainer setting
     trainer = Trainer(
-        checkpoint_callback=checkpoint_callback,
         check_val_every_n_epoch=1,
         gpus=args.gpu,
         auto_select_gpus=True,
@@ -114,6 +110,7 @@ def run(args):
         gradient_clip_val=args.max_grad_norm,
         num_sanity_val_steps=0,
         deterministic=True,
+        callbacks=[checkpoint_callback]
     )
     
     print("Train starts.")

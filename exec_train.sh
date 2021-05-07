@@ -9,8 +9,9 @@ python src/main.py \
     --valid_prefix="valid" \
     --test_prefix="test" \
     --max_turns=1 \
-    --num_epochs=10 \
-    --batch_size=16 \
+    --num_epochs=1 \
+    --batch_size=1 \
+    --num_workers=0 \
     --max_encoder_len=512 \
     --learning_rate=2e-5 \
     --warmup_prop=0 \
@@ -18,6 +19,5 @@ python src/main.py \
     --sigmoid_threshold=0.5 \
     --seed=0 \
     --model_name=MODEL_NAME \
-    --ckpt_name="" \
     --gpu="0" \
     --num_nodes=1
