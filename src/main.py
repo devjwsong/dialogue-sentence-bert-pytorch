@@ -5,7 +5,7 @@ from torch import nn
 from model_utils.train_module import *
 from model_utils.encoders import setting
 from data_utils.datasets import *
-from pytorch_lightning import Trainer
+from pytorch_lightning import Trainer, seed_everything
 from pytorch_lightning.callbacks import ModelCheckpoint
 from utils import *
 
@@ -30,9 +30,11 @@ def run(args):
     if not os.path.isdir(args.save_dir):
         os.makedirs(args.save_dir)
 
+    seed_everything(args.seed)
+
     # Tokenizer & Model
     args, config, tokenizer, model = setting(args)
-    
+
     with open(f"{args.dataset_dir}/{args.task}_{args.class_dict_name}.json", 'r') as f:
         args.class_dict = json.load(f)
     args.num_classes = len(args.class_dict)
@@ -56,15 +58,12 @@ def run(args):
     args.warmup_steps = int(args.total_train_steps * args.warmup_prop)
     
     # Random seed fixing for model
-    fix_seed(args.seed)
+    seed_everything(args.seed)
     
     # Model setting
     print(f"Loading training module for {args.task}...")       
     module = TrainModule(args, model)
-    
-    # Re-seed random seed for data shuffle
-    fix_seed(args.seed)
-    
+
     # Dataloaders
     input_pad_id = args.pad_id
     if args.task == 'intent':
@@ -75,6 +74,9 @@ def run(args):
     elif args.task == 'action':
         ppd = ActionPadCollate(input_pad_id=input_pad_id)
     
+    # Reset random seed for data shuffle
+    seed_everything(args.seed)
+
     train_loader = DataLoader(train_set, collate_fn=ppd.pad_collate, batch_size=args.batch_size, shuffle=True, num_workers=args.num_workers, pin_memory=True)
     valid_loader = DataLoader(valid_set, collate_fn=ppd.pad_collate, batch_size=args.batch_size, num_workers=args.num_workers, pin_memory=True)
     test_loader = DataLoader(test_set, collate_fn=ppd.pad_collate, batch_size=args.batch_size, num_workers=args.num_workers, pin_memory=True)
@@ -98,6 +100,8 @@ def run(args):
         monitor=monitor,
         mode='max'
     )
+
+    seed_everything(args.seed)
     
     # Trainer setting
     trainer = Trainer(
@@ -107,7 +111,9 @@ def run(args):
         auto_select_gpus=True,
         num_nodes=args.num_nodes,
         max_epochs=args.num_epochs,
-        gradient_clip_val=args.max_grad_norm
+        gradient_clip_val=args.max_grad_norm,
+        num_sanity_val_steps=0,
+        deterministic=True,
     )
     
     print("Train starts.")
@@ -125,25 +131,25 @@ if __name__=='__main__':
     
     parser.add_argument('--task', required=True, type=str, help="The name of the task.")
     parser.add_argument('--dataset', required=True, type=str, help="The name of the dataset.")
-    parser.add_argument('--ckpt_dir', required=True, type=str, default="saved_models", help="The directory path for saved checkpoints.")
-    parser.add_argument('--data_dir', required=True, type=str, default="data", help="The parent directory path for data files.")
-    parser.add_argument('--processed_dir', required=True, type=str, default="processed", help="The directory path to finetuning data files.")
-    parser.add_argument('--class_dict_name', required=True, type=str, default="class_dict", help="The name of class dictionary json file.")
+    parser.add_argument('--ckpt_dir', type=str, default="saved_models", help="The directory path for saved checkpoints.")
+    parser.add_argument('--data_dir', type=str, default="data", help="The parent directory path for data files.")
+    parser.add_argument('--processed_dir', type=str, default="processed", help="The directory path to finetuning data files.")
+    parser.add_argument('--class_dict_name', type=str, default="class_dict", help="The name of class dictionary json file.")
     parser.add_argument('--train_prefix', type=str, default="train", help="The prefix of file name related to train set.")
     parser.add_argument('--valid_prefix', type=str, default="valid", help="The prefix of file name related to valid set.")
     parser.add_argument('--test_prefix', type=str, default="test", help="The prefix of file name related to test set.")
-    parser.add_argument('--max_turns', required=True, type=int, default=1, help="The maximum number of dialogue turns.")
+    parser.add_argument('--max_turns', type=int, default=1, help="The maximum number of dialogue turns.")
     parser.add_argument('--num_epochs', type=int, default=1, help="The number of total epochs.")
-    parser.add_argument('--batch_size', required=True, type=int, default=1, help="The batch size in one process.")
-    parser.add_argument('--num_workers', required=True, type=int, default=1, help="The number of workers for data loading.")
-    parser.add_argument('--max_encoder_len', required=True, type=int, default=512, help="The maximum length of a sequence.")
+    parser.add_argument('--batch_size', type=int, default=1, help="The batch size in one process.")
+    parser.add_argument('--num_workers', type=int, default=0, help="The number of workers for data loading.")
+    parser.add_argument('--max_encoder_len', type=int, default=512, help="The maximum length of a sequence.")
     parser.add_argument('--learning_rate', type=float, default=5e-5, help="The starting learning rate.")
     parser.add_argument('--warmup_prop', type=float, default=0.0)
     parser.add_argument('--max_grad_norm', type=float, default=1.0, help="The max gradient for gradient clipping.")
-    parser.add_argument('--sigmoid_threshold', required=True, type=float, default=0.0, help="The sigmoid threshold for action prediction task.")
+    parser.add_argument('--sigmoid_threshold', type=float, default=0.0, help="The sigmoid threshold for action prediction task.")
     parser.add_argument('--cached', action="store_true", help="Using the cached data or not?")
-    parser.add_argument('--seed', required=True, type=int, default=0, help="The seed number.")
-    parser.add_argument('--model_name', required=True, type=str, default='bert', help="The encoder model to test.")
+    parser.add_argument('--seed', type=int, default=0, help="The seed number.")
+    parser.add_argument('--model_name', required=True, type=str, help="The encoder model to test.")
     parser.add_argument('--ckpt_name', required=False, type=str, help="If only training from a specific checkpoint...")
     parser.add_argument('--gpu', type=str, default="0")
     parser.add_argument('--num_nodes', type=int, default=1)
@@ -152,9 +158,9 @@ if __name__=='__main__':
     
     assert args.task == 'intent' or args.task == 'entity' or args.task == 'action', "You must specify a correct dialogue task."
     assert args.model_name in [
-        'bert', 'bert-dg', 'convbert', 'convbert-dg', 'albert', 'distilbert',
-        'bert-teacher', 'bert-dg-teacher', 'convbert-teacher', 'albert-teacher', 'distilbert-teacher',
-        'bert-student', 'bert-dg-student', 'convbert-student', 'albert-student', 'distilbert-student',
+        'bert',  'convbert', 'albert', 'distilbert',
+        'bert-teacher', 'convbert-teacher', 'albert-teacher', 'distilbert-teacher',
+        'bert-student', 'convbert-student', 'albert-student', 'distilbert-student',
     ], "You must specify a correct model name."
     if 'teacher' in args.model_name or 'student' in args.model_name:
         assert args.ckpt_name is not None

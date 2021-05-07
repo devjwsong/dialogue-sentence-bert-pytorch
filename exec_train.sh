@@ -1,6 +1,6 @@
 python src/main.py \
-    --task="intent" \
-    --dataset="oos" \
+    --task=TASK_NAME \
+    --dataset=DATASET_NAME \
     --ckpt_dir="saved_models" \
     --data_dir="data" \
     --processed_dir="processed" \
@@ -9,16 +9,15 @@ python src/main.py \
     --valid_prefix="valid" \
     --test_prefix="test" \
     --max_turns=1 \
-    --num_epochs=30 \
+    --num_epochs=10 \
     --batch_size=16 \
-    --num_workers=4 \
     --max_encoder_len=512 \
     --learning_rate=2e-5 \
     --warmup_prop=0 \
     --max_grad_norm=1.0 \
     --sigmoid_threshold=0.5 \
     --seed=0 \
-    --model_name="bert" \
+    --model_name=MODEL_NAME \
     --ckpt_name="" \
-    --gpu="1" \
+    --gpu="0" \
     --num_nodes=1
