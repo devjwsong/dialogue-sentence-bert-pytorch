@@ -11,7 +11,7 @@ python src/main.py \
     --max_turns=1 \
     --num_epochs=10 \
     --batch_size=16 \
-    --num_workers=8 \
+    --num_workers=0 \
     --max_encoder_len=512 \
     --learning_rate=2e-5 \
     --warmup_prop=0 \
@@ -19,5 +19,5 @@ python src/main.py \
     --sigmoid_threshold=0.5 \
     --seed=0 \
     --model_name="bert" \
-    --gpu="1" \
+    --gpu="0" \
     --num_nodes=1
