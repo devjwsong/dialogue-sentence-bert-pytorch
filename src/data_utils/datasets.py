@@ -53,6 +53,8 @@ class IDDataset(Dataset):
         self.input_ids = []  # (N, L)
         self.labels = []  # (N, L)
         
+        self.data_prefix = data_prefix
+        
         max_len = 0
         
         if not args.cached:
@@ -75,15 +77,15 @@ class IDDataset(Dataset):
             
             print(f"Exceed count: {exceed_count}")
             print(f"Max length: {max_len}")
-            with open(f"{args.save_dir}/{data_prefix}_input_ids_cached.pickle", 'wb') as f:
+            with open(f"{args.cache_dir}/{data_prefix}_input_ids_cached.pickle", 'wb') as f:
                 pickle.dump(self.input_ids, f)
-            with open(f"{args.save_dir}/{data_prefix}_labels_cached.pickle", 'wb') as f:
+            with open(f"{args.cache_dir}/{data_prefix}_labels_cached.pickle", 'wb') as f:
                 pickle.dump(self.labels, f)
         else:
             print("Loading cached data...")
-            with open(f"{args.save_dir}/{data_prefix}_input_ids_cached.pickle", 'rb') as f:
+            with open(f"{args.cache_dir}/{data_prefix}_input_ids_cached.pickle", 'rb') as f:
                 self.input_ids = pickle.load(f)
-            with open(f"{args.save_dir}/{data_prefix}_labels_cached.pickle", 'rb') as f:
+            with open(f"{args.cache_dir}/{data_prefix}_labels_cached.pickle", 'rb') as f:
                 self.labels = pickle.load(f)
                 
         print(f"Total {len(self.input_ids)} sequences prepared.")
@@ -149,15 +151,15 @@ class ERDataset(Dataset):
             
             print(f"Exceed count: {exceed_count}")
             print(f"Max length: {max_len}")
-            with open(f"{args.save_dir}/{data_prefix}_input_ids_cached.pickle", 'wb') as f:
+            with open(f"{args.cache_dir}/{data_prefix}_input_ids_cached.pickle", 'wb') as f:
                 pickle.dump(self.input_ids, f)
-            with open(f"{args.save_dir}/{data_prefix}_labels_cached.pickle", 'wb') as f:
+            with open(f"{args.cache_dir}/{data_prefix}_labels_cached.pickle", 'wb') as f:
                 pickle.dump(self.labels, f)
         else:
             print("Loading cached data...")
-            with open(f"{args.save_dir}/{data_prefix}_input_ids_cached.pickle", 'rb') as f:
+            with open(f"{args.cache_dir}/{data_prefix}_input_ids_cached.pickle", 'rb') as f:
                 self.input_ids = pickle.load(f)
-            with open(f"{args.save_dir}/{data_prefix}_labels_cached.pickle", 'rb') as f:
+            with open(f"{args.cache_dir}/{data_prefix}_labels_cached.pickle", 'rb') as f:
                 self.labels = pickle.load(f)
         
         print(f"Total {len(self.input_ids)} sequences prepared.")
@@ -233,15 +235,15 @@ class APDataset(Dataset):
             
             print(f"Exceed count: {exceed_count}")
             print(f"Max length: {max_len}")
-            with open(f"{args.save_dir}/{data_prefix}_input_ids_cached.pickle", 'wb') as f:
+            with open(f"{args.cache_dir}/{data_prefix}_input_ids_cached.pickle", 'wb') as f:
                 pickle.dump(self.input_ids, f)
-            with open(f"{args.save_dir}/{data_prefix}_labels_cached.pickle", 'wb') as f:
+            with open(f"{args.cache_dir}/{data_prefix}_labels_cached.pickle", 'wb') as f:
                 pickle.dump(self.labels, f)
         else:
             print("Loading cached data...")
-            with open(f"{args.save_dir}/{data_prefix}_input_ids_cached.pickle", 'rb') as f:
+            with open(f"{args.cache_dir}/{data_prefix}_input_ids_cached.pickle", 'rb') as f:
                 self.input_ids = pickle.load(f)
-            with open(f"{args.save_dir}/{data_prefix}_labels_cached.pickle", 'rb') as f:
+            with open(f"{args.cache_dir}/{data_prefix}_labels_cached.pickle", 'rb') as f:
                 self.labels = pickle.load(f)
         
         print(f"Total {len(self.input_ids)} sequences prepared.")

@@ -129,7 +129,7 @@ dmypy.json
 .pyre/
 
 # Large directories
-saved_models/
+cached/
 data/
 
 # Jupyter files

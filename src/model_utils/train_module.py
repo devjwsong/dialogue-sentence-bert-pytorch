@@ -4,6 +4,8 @@ from transformers import get_linear_schedule_with_warmup
 from .encoders import *
 from .output_layers import *
 from utils import *
+from pytorch_lightning import seed_everything
+from argparse import Namespace
 
 import torch
 import pytorch_lightning as pl
@@ -17,16 +19,21 @@ loss_funcs = {
 
 
 class TrainModule(pl.LightningModule):
-    def __init__(self, args, encoder):
+    def __init__(self, args):
         super().__init__()
+        if isinstance(args, dict):
+            args = Namespace(**args)
+            
+        self.args, config, self.tokenizer, self.encoder = setting(args)
         
-        self.args = args
-        self.save_hyperparameters(args)
-        
-        self.encoder = encoder
+        seed_everything(self.args.seed, workers=True)
         self.output_layer = load_output_layer(self.args)
         
-        self.loss_func = loss_funcs[args.task]
+        self.loss_func = loss_funcs[self.args.task]
+        
+        self.save_hyperparameters(args)
+        
+        self.called_test_idxs = []
         
     def forward(self, input_ids, padding_masks=None):  # input_ids: (B, L), padding_masks: (B, L)
         hidden_states = self.encoder(input_ids=input_ids, attention_mask=padding_masks)[0]  # (B, L, d_h)

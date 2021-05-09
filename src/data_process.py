@@ -5,8 +5,7 @@ import argparse
 import os
 
 
-# data_list = ["oos", "atis", "multiwoz", "taskmaster3", "dstc2", "sim"]
-data_list = ["oos"]
+data_list = ["oos", "atis", "multiwoz", "taskmaster3", "dstc2", "sim"]
 
 
 def process_data(args, processed_dir):

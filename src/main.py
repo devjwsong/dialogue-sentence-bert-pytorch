@@ -23,44 +23,38 @@ def run(args):
     args.dataset_dir = f"{args.data_dir}/{args.processed_dir}/{args.dataset}"
     assert os.path.isdir(args.dataset_dir)
     
-    args.save_dir = f"{args.ckpt_dir}/{args.task}/{args.dataset}/{args.model_name}"
+    args.cache_dir = f"{args.cache_dir}/{args.task}/{args.dataset}/{args.model_name}"
     if args.task == 'entity' or args.task == 'action':
-        args.save_dir = f"{args.save_dir}/{args.max_turns}"
+        args.cache_dir = f"{args.cache_dir}/{args.max_turns}"
     
-    if not os.path.isdir(args.save_dir):
-        os.makedirs(args.save_dir)
-
-    # Tokenizer & Model
-    args, config, tokenizer, model = setting(args)
+    if not os.path.isdir(args.cache_dir):
+        os.makedirs(args.cache_dir)
 
     with open(f"{args.dataset_dir}/{args.task}_{args.class_dict_name}.json", 'r') as f:
         args.class_dict = json.load(f)
     args.num_classes = len(args.class_dict)
     
+    print(f"Loading training module for {args.task}...")   
+    module = TrainModule(args)
+    args = module.args
+    
     print("Loading datasets...")
     # For data loading
     if args.task == 'intent':
-        train_set = IDDataset(args, args.train_prefix, tokenizer)
-        valid_set = IDDataset(args, args.valid_prefix, tokenizer)
-        test_set = IDDataset(args, args.test_prefix, tokenizer)
+        train_set = IDDataset(args, args.train_prefix, module.tokenizer)
+        valid_set = IDDataset(args, args.valid_prefix, module.tokenizer)
+        test_set = IDDataset(args, args.test_prefix, module.tokenizer)
     elif args.task == 'entity':
-        train_set = ERDataset(args, args.train_prefix, tokenizer)
-        valid_set = ERDataset(args, args.valid_prefix, tokenizer)
-        test_set = ERDataset(args, args.test_prefix, tokenizer)
+        train_set = ERDataset(args, args.train_prefix, module.tokenizer)
+        valid_set = ERDataset(args, args.valid_prefix, module.tokenizer)
+        test_set = ERDataset(args, args.test_prefix, module.tokenizer)
     elif args.task == 'action':
-        train_set = APDataset(args, args.train_prefix, tokenizer)
-        valid_set = APDataset(args, args.valid_prefix, tokenizer)
-        test_set = APDataset(args, args.test_prefix, tokenizer)
+        train_set = APDataset(args, args.train_prefix, module.tokenizer)
+        valid_set = APDataset(args, args.valid_prefix, module.tokenizer)
+        test_set = APDataset(args, args.test_prefix, module.tokenizer)
 
     args.total_train_steps = int(len(train_set) / args.batch_size * args.num_epochs)
     args.warmup_steps = int(args.total_train_steps * args.warmup_prop)
-    
-    # Random seed fixing for model
-    seed_everything(args.seed, workers=True)
-    
-    # Model setting
-    print(f"Loading training module for {args.task}...")       
-    module = TrainModule(args, model)
 
     # Dataloaders
     input_pad_id = args.pad_id
@@ -92,12 +86,12 @@ def run(args):
         monitor = "valid_micro_f1"
     
     checkpoint_callback = ModelCheckpoint(
-        dirpath=args.save_dir,
         filename=filename,
         verbose=True,
         monitor=monitor,
         mode='max',
         every_n_val_epochs=1,
+        save_weights_only=True
     )
     
     # Trainer setting
@@ -118,7 +112,7 @@ def run(args):
     print("Training done.")
     
     print("Test starts.")
-    trainer.test(model=module, test_dataloaders=test_loader, ckpt_path='best')
+    trainer.test(test_dataloaders=test_loader, ckpt_path='best')
     
     print("GOOD BYE.")
     
@@ -128,7 +122,7 @@ if __name__=='__main__':
     
     parser.add_argument('--task', required=True, type=str, help="The name of the task.")
     parser.add_argument('--dataset', required=True, type=str, help="The name of the dataset.")
-    parser.add_argument('--ckpt_dir', type=str, default="saved_models", help="The directory path for saved checkpoints.")
+    parser.add_argument('--cache_dir', type=str, default="cached", help="The directory path for pre-processed data pickles.")
     parser.add_argument('--data_dir', type=str, default="data", help="The parent directory path for data files.")
     parser.add_argument('--processed_dir', type=str, default="processed", help="The directory path to finetuning data files.")
     parser.add_argument('--class_dict_name', type=str, default="class_dict", help="The name of class dictionary json file.")
