@@ -120,7 +120,7 @@ class ERDataset(Dataset):
                     if len(utter_histories) > args.max_turns:
                         utter_histories = utter_histories[1:]
 
-                    if speaker == 'usr':
+                    if speaker == 'usr' and len(tokens) > 0:
                         utter_labels = ['O' for i in range(len(tokens))]
                         entity_infos = labels[d][u]
                         entity_infos.sort(key=lambda x:x[2])
@@ -219,7 +219,7 @@ class APDataset(Dataset):
                         target = F.one_hot(torch.LongTensor(action_ids), num_classes=args.num_classes)
                         target = (target.sum(0) > 0).long().tolist()
 
-                        assert len(target) == len(class_dict)
+                        assert len(target) == len(args.class_dict)
 
                         input_ids, _ = flat_seq(copy.deepcopy(utter_histories), args)
 

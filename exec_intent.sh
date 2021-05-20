@@ -1,0 +1,43 @@
+python src/main.py \
+    --task="intent" \
+    --dataset="oos" \
+    --cache_dir="cached" \
+    --data_dir="data" \
+    --processed_dir="processed" \
+    --class_dict_name="class_dict" \
+    --train_prefix="train" \
+    --valid_prefix="valid" \
+    --test_prefix="test" \
+    --num_epochs=5 \
+    --batch_size=16 \
+    --num_workers=4 \
+    --max_encoder_len=512 \
+    --learning_rate=5e-5 \
+    --warmup_prop=0.1 \
+    --max_grad_norm=1.0 \
+    --seed=0 \
+    --model_name=MODEL_NAME \
+    --gpu=GPU \
+    --num_nodes=1
+    
+python src/main.py \
+    --task="intent" \
+    --dataset="atis" \
+    --cache_dir="cached" \
+    --data_dir="data" \
+    --processed_dir="processed" \
+    --class_dict_name="class_dict" \
+    --train_prefix="train" \
+    --valid_prefix="valid" \
+    --test_prefix="test" \
+    --num_epochs=5 \
+    --batch_size=16 \
+    --num_workers=4 \
+    --max_encoder_len=512 \
+    --learning_rate=2e-5 \
+    --warmup_prop=0 \
+    --max_grad_norm=1.0 \
+    --seed=0 \
+    --model_name=MODEL_NAME \
+    --gpu=GPU \
+    --num_nodes=1

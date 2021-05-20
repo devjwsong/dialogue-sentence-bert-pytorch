@@ -33,8 +33,6 @@ class TrainModule(pl.LightningModule):
         
         self.save_hyperparameters(args)
         
-        self.called_test_idxs = []
-        
     def forward(self, input_ids, padding_masks=None):  # input_ids: (B, L), padding_masks: (B, L)
         hidden_states = self.encoder(input_ids=input_ids, attention_mask=padding_masks)[0]  # (B, L, d_h)
         
@@ -209,16 +207,19 @@ class TrainModule(pl.LightningModule):
     
     def configure_optimizers(self):
         optimizer = torch.optim.AdamW(self.parameters(), lr=self.args.learning_rate)
-        scheduler = {
-            'scheduler': get_linear_schedule_with_warmup(
-                            optimizer, 
-                            num_warmup_steps=self.args.warmup_steps, 
-                            num_training_steps=self.args.total_train_steps
-                        ),
-            'name': 'learning_rate',
-            'interval': 'step',
-            'frequency': 1
-            
-        }
-        
-        return [optimizer], [scheduler]
+        if self.args.warmup_steps < 0.0:
+            return [optimizer]
+        else:
+            scheduler = {
+                'scheduler': get_linear_schedule_with_warmup(
+                                optimizer, 
+                                num_warmup_steps=self.args.warmup_steps, 
+                                num_training_steps=self.args.total_train_steps
+                            ),
+                'name': 'learning_rate',
+                'interval': 'step',
+                'frequency': 1
+
+            }
+
+            return [optimizer], [scheduler]

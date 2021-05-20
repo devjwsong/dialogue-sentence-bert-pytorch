@@ -53,9 +53,6 @@ def run(args):
         valid_set = APDataset(args, args.valid_prefix, module.tokenizer)
         test_set = APDataset(args, args.test_prefix, module.tokenizer)
 
-    args.total_train_steps = int(len(train_set) / args.batch_size * args.num_epochs)
-    args.warmup_steps = int(args.total_train_steps * args.warmup_prop)
-
     # Dataloaders
     input_pad_id = args.pad_id
     if args.task == 'intent':
@@ -72,6 +69,11 @@ def run(args):
     train_loader = DataLoader(train_set, collate_fn=ppd.pad_collate, batch_size=args.batch_size, shuffle=True, num_workers=args.num_workers, pin_memory=True)
     valid_loader = DataLoader(valid_set, collate_fn=ppd.pad_collate, batch_size=args.batch_size, num_workers=args.num_workers, pin_memory=True)
     test_loader = DataLoader(test_set, collate_fn=ppd.pad_collate, batch_size=args.batch_size, num_workers=args.num_workers, pin_memory=True)
+    
+    # Calculate total training steps
+    num_batches = len(train_loader)
+    args.total_train_steps = args.num_epochs * num_batches
+    args.warmup_steps = int(args.warmup_prop * args.total_train_steps)
 
     print("Setting pytorch lightning callback & trainer...")
     # Model checkpoint callback
