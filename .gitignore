@@ -131,6 +131,7 @@ dmypy.json
 # Large directories
 cached/
 data/
+saved_models/
 
 # Jupyter files
 *.ipynb

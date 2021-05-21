@@ -143,6 +143,7 @@ if __name__=='__main__':
     parser.add_argument('--cached', action="store_true", help="Using the cached data or not?")
     parser.add_argument('--seed', type=int, default=0, help="The seed number.")
     parser.add_argument('--model_name', required=True, type=str, help="The encoder model to test.")
+    parser.add_argument('--ckpt_dir', required=False, type=str, help="If only training from a specific checkpoint...")
     parser.add_argument('--ckpt_name', required=False, type=str, help="If only training from a specific checkpoint...")
     parser.add_argument('--gpu', type=str, default="0")
     parser.add_argument('--num_nodes', type=int, default=1)
@@ -155,12 +156,14 @@ if __name__=='__main__':
         'bert-teacher', 'convbert-teacher', 'albert-teacher', 'distilbert-teacher',
         'bert-student', 'convbert-student', 'albert-student', 'distilbert-student',
     ], "You must specify a correct model name."
+    if 'conv' in args.model_name:
+        assert args.ckpt_dir is not None
     if 'teacher' in args.model_name or 'student' in args.model_name:
-        assert args.ckpt_name is not None
+        assert args.ckpt_dir is not None or args.ckpt_name is not None
     
     print("#"*50 + "Running spec" + "#"*50)
     print(args)
     
-    input("Press Enter to continue...")
+    input("Please press Enter to proceed...")
     
     run(args)
