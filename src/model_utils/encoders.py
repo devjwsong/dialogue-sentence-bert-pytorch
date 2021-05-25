@@ -58,20 +58,20 @@ def load_teacher(args):
     args.hidden_size = model.config.hidden_size
 
     if 'teacher' in args.model_name:
-        model.load_state_dict(f"{args.ckpt_dir}/{args.model_name}/{args.ckpt_name}")
+        model.load_state_dict(torch.load(f"{args.ckpt_dir}/{args.model_name}/{args.ckpt_name}"))
         
     return config, tokenizer, model, attrs
 
 
-def load_student(args, attrs):
+def load_student(args):
     attrs = attr_map[args.model_name]
     
     model_path = f"{args.ckpt_dir}/{args.model_name}"
     
     with open(f"{model_path}/student_config.json", 'r') as f:
         config = json.load(f)
-    tokenizer = attrs[2].from_pretrained(model_path)
-    teacher_model = attrs[3].from_pretrained(model_path)
+    tokenizer = attrs[2].from_pretrained(attrs[0])
+    teacher_model = attrs[3].from_pretrained(attrs[0])
     args.embedding_size = teacher_model.config.hidden_size
     args.hidden_size = config['hidden_size']
     args.num_heads = config['num_heads']
@@ -92,13 +92,13 @@ class StudentModel(nn.Module):
         self.projection = nn.Linear(args.embedding_size, args.hidden_size)
         
         encoder_layer = nn.TransformerEncoderLayer(d_model=args.hidden_size, nhead=args.num_heads)
-        self.encoder = nn.TransformerEncoder(encoder_layer, num_layer=args.num_layers)
+        self.encoder = nn.TransformerEncoder(encoder_layer, num_layers=args.num_layers)
         
-    def forward(self, input_ids, padding_masks=None):  # input_ids: (B, S_L), padding_masks: (B, S_L)
+    def forward(self, input_ids, attention_mask=None):  # input_ids: (B, S_L), padding_masks: (B, S_L)
         input_embs = self.embeddings(input_ids)  # (B, S_L, D_T)
         input_embs = self.projection(input_embs)  # (B, S_L, D_S)
         
-        outputs = self.encoder(src=input_embs.transpose(0, 1), src_key_padding_mask=padding_masks)  # (S_L, B, D_S)
+        outputs = self.encoder(src=input_embs.transpose(0, 1), src_key_padding_mask=attention_mask)  # (S_L, B, D_S)
         
         return outputs.transpose(0, 1)  # (B, S_L, D_S)
     

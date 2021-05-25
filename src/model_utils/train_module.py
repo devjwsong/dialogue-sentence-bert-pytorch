@@ -34,7 +34,9 @@ class TrainModule(pl.LightningModule):
         self.save_hyperparameters(args)
         
     def forward(self, input_ids, padding_masks=None):  # input_ids: (B, L), padding_masks: (B, L)
-        hidden_states = self.encoder(input_ids=input_ids, attention_mask=padding_masks)[0]  # (B, L, d_h)
+        hidden_states = self.encoder(input_ids=input_ids, attention_mask=padding_masks)  # (B, L, d_h)
+        if 'student' not in self.args.model_name:
+            hidden_states = hidden_states[0]
         
         if self.args.task != 'entity':
             hidden_states = hidden_states[:, 0, :]  # (B, d_h)

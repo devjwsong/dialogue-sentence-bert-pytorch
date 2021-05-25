@@ -76,6 +76,7 @@ class IDDataset(Dataset):
             assert len(self.input_ids) == len(self.labels)
             
             print(f"Exceed count: {exceed_count}")
+            assert exceed_count == 0
             print(f"Max length: {max_len}")
             with open(f"{args.cache_dir}/{data_prefix}_input_ids_cached.pickle", 'wb') as f:
                 pickle.dump(self.input_ids, f)
@@ -150,6 +151,7 @@ class ERDataset(Dataset):
             assert len(self.input_ids) == len(self.labels)
             
             print(f"Exceed count: {exceed_count}")
+            assert exceed_count == 0
             print(f"Max length: {max_len}")
             with open(f"{args.cache_dir}/{data_prefix}_input_ids_cached.pickle", 'wb') as f:
                 pickle.dump(self.input_ids, f)
@@ -222,7 +224,6 @@ class APDataset(Dataset):
                         assert len(target) == len(args.class_dict)
 
                         input_ids, _ = flat_seq(copy.deepcopy(utter_histories), args)
-
                         if input_ids is not None:
                             self.input_ids.append(input_ids)
                             self.labels.append(target)
@@ -234,6 +235,7 @@ class APDataset(Dataset):
             assert len(self.input_ids) == len(self.labels)
             
             print(f"Exceed count: {exceed_count}")
+            assert exceed_count == 0
             print(f"Max length: {max_len}")
             with open(f"{args.cache_dir}/{data_prefix}_input_ids_cached.pickle", 'wb') as f:
                 pickle.dump(self.input_ids, f)
