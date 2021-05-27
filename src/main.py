@@ -152,9 +152,9 @@ if __name__=='__main__':
     
     assert args.task == 'intent' or args.task == 'entity' or args.task == 'action', "You must specify a correct dialogue task."
     assert args.model_name in [
-        'bert',  'convbert', 'albert', 'distilbert',
-        'bert-teacher', 'convbert-teacher', 'albert-teacher', 'distilbert-teacher',
-        'bert-student', 'convbert-student', 'albert-student', 'distilbert-student',
+        'bert',  'convbert', 'albert', 'distilbert', 'todbert',
+        'bert-teacher', 'convbert-teacher', 'albert-teacher', 'distilbert-teacher', 'todbert-teacher',
+        'bert-student', 'convbert-student', 'albert-student', 'distilbert-student', 'todbert-student'
     ], "You must specify a correct model name."
     if 'conv' in args.model_name:
         assert args.ckpt_dir is not None

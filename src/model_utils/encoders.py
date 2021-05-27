@@ -12,14 +12,17 @@ attr_map = {
     'albert': ['albert-base-v1', AlbertConfig, AlbertTokenizer, AlbertModel, '[CLS]', '[SEP]', '<pad>', '<unk>'],
     'distilbert': ['distilbert-base-uncased', DistilBertConfig, DistilBertTokenizer, DistilBertModel, '[CLS]', '[SEP]', '[PAD]', '[UNK]'],
     'convbert': ['convbert', BertConfig, BertTokenizer, BertModel, '[CLS]', '[SEP]', '[PAD]', '[UNK]'],
+    'todbert': ['TODBERT/TOD-BERT-JNT-V1', AutoConfig, AutoTokenizer, AutoModel, '[CLS]', '[SEP]', '[PAD]', '[UNK]'],
     'bert-teacher': ['bert-base-uncased', BertConfig, BertTokenizer, BertModel, '[CLS]', '[SEP]', '[PAD]', '[UNK]'],
     'albert-teacher': ['albert-base-v1', AlbertConfig, AlbertTokenizer, AlbertModel, '[CLS]', '[SEP]', '<pad>', '<unk>'],
     'distilbert-teacher': ['distilbert-base-uncased', DistilBertConfig, DistilBertTokenizer, DistilBertModel, '[CLS]', '[SEP]', '[PAD]', '[UNK]'],
     'convbert-teacher': ['convbert', BertConfig, BertTokenizer, BertModel, '[CLS]', '[SEP]', '[PAD]', '[UNK]'],
+    'todbert-teacher': ['TODBERT/TOD-BERT-JNT-V1', AutoConfig, AutoTokenizer, AutoModel, '[CLS]', '[SEP]', '[PAD]', '[UNK]'],
     'bert-student': ['bert-base-uncased', BertConfig, BertTokenizer, BertModel, '[CLS]', '[SEP]', '[PAD]', '[UNK]'],
     'albert-student': ['albert-base-v1', AlbertConfig, AlbertTokenizer, AlbertModel, '[CLS]', '[SEP]', '<pad>', '<unk>'],
     'distilbert-student': ['distilbert-base-uncased', DistilBertConfig, DistilBertTokenizer, DistilBertModel, '[CLS]', '[SEP]', '[PAD]', '[UNK]'],
-    'convbert-student': ['convbert', BertConfig, BertTokenizer, BertModel, '[CLS]', '[SEP]', '[PAD]', '[UNK]']
+    'convbert-student': ['convbert', BertConfig, BertTokenizer, BertModel, '[CLS]', '[SEP]', '[PAD]', '[UNK]'],
+    'todbert-student': ['TODBERT/TOD-BERT-JNT-V1', AutoConfig, AutoTokenizer, AutoModel, '[CLS]', '[SEP]', '[PAD]', '[UNK]']
 }
 
 
