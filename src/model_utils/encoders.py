@@ -13,6 +13,12 @@ attr_map = {
     'distilbert': ['distilbert-base-uncased', DistilBertConfig, DistilBertTokenizer, DistilBertModel, '[CLS]', '[SEP]', '[PAD]', '[UNK]'],
     'convbert': ['convbert', BertConfig, BertTokenizer, BertModel, '[CLS]', '[SEP]', '[PAD]', '[UNK]'],
     'todbert': ['TODBERT/TOD-BERT-JNT-V1', AutoConfig, AutoTokenizer, AutoModel, '[CLS]', '[SEP]', '[PAD]', '[UNK]'],
+    'sentbert-cls': ['sentence-transformers/bert-base-nli-cls-token', AutoConfig, AutoTokenizer, AutoModel, '[CLS]', '[SEP]', '[PAD]', '[UNK]'],
+    'sentbert-mean': ['sentence-transformers/bert-base-nli-mean-tokens', AutoConfig, AutoTokenizer, AutoModel, '[CLS]', '[SEP]', '[PAD]', '[UNK]'],
+    'sentbert-max': ['sentence-transformers/bert-base-nli-max-tokens', AutoConfig, AutoTokenizer, AutoModel, '[CLS]', '[SEP]', '[PAD]', '[UNK]'],
+    'dialogsentbert-cls': ['bert-base-uncased', BertConfig, BertTokenizer, BertModel, '[CLS]', '[SEP]', '[PAD]', '[UNK]'],
+    'dialogsentbert-mean': ['bert-base-uncased', BertConfig, BertTokenizer, BertModel, '[CLS]', '[SEP]', '[PAD]', '[UNK]'],
+    'dialogsentbert-max': ['bert-base-uncased', BertConfig, BertTokenizer, BertModel, '[CLS]', '[SEP]', '[PAD]', '[UNK]'],
     'bert-teacher': ['bert-base-uncased', BertConfig, BertTokenizer, BertModel, '[CLS]', '[SEP]', '[PAD]', '[UNK]'],
     'albert-teacher': ['albert-base-v1', AlbertConfig, AlbertTokenizer, AlbertModel, '[CLS]', '[SEP]', '<pad>', '<unk>'],
     'distilbert-teacher': ['distilbert-base-uncased', DistilBertConfig, DistilBertTokenizer, DistilBertModel, '[CLS]', '[SEP]', '[PAD]', '[UNK]'],
@@ -26,12 +32,12 @@ attr_map = {
 }
 
 
-def setting(args):
+def setting(args, load_model=True):
     # Set specific encoder model's attributes
     if 'student' in args.model_name:
-        config, tokenizer, model, attrs = load_student(args)
+        config, tokenizer, model, attrs = load_student(args, load_model)
     else:
-        config, tokenizer, model, attrs = load_teacher(args)
+        config, tokenizer, model, attrs = load_teacher(args, load_model)
         
     args.cls_token = attrs[4]
     args.sep_token = attrs[5]
@@ -48,41 +54,50 @@ def setting(args):
     return args, config, tokenizer, model
     
 
-def load_teacher(args):
+def load_teacher(args, load_model):
     attrs = attr_map[args.model_name]
     
-    model_path = attrs[0]
-    if 'conv' in args.model_name:
-        model_path = f"{args.ckpt_dir}/{args.model_name}"
+    model_dir = attrs[0]
+    if 'conv' in model_dir:
+        model_dir = f"{args.ckpt_dir}/{model_dir.split('-')[0]}"
     
-    config = attrs[1].from_pretrained(model_path)
-    tokenizer = attrs[2].from_pretrained(model_path)
-    model = attrs[3].from_pretrained(model_path)
-    args.hidden_size = model.config.hidden_size
+    config = attrs[1].from_pretrained(model_dir)
+    tokenizer = attrs[2].from_pretrained(model_dir)
+    model = None
+    if load_model:
+        model = attrs[3].from_pretrained(model_dir)
+        args.hidden_size = model.config.hidden_size
 
-    if 'teacher' in args.model_name:
-        model.load_state_dict(torch.load(f"{args.ckpt_dir}/{args.model_name}/{args.ckpt_name}"))
+        if 'teacher' in args.model_name or 'dialogsent' in args.model_name:
+            model.load_state_dict(torch.load(f"{args.ckpt_dir}/{args.model_name}/{args.ckpt_name}.pt"))
         
     return config, tokenizer, model, attrs
 
 
-def load_student(args):
+def load_student(args, load_model):
     attrs = attr_map[args.model_name]
     
-    model_path = f"{args.ckpt_dir}/{args.model_name}"
+    model_dir = f"{args.ckpt_dir}/{args.model_name}"
     
-    with open(f"{model_path}/student_config.json", 'r') as f:
+    with open(f"{model_dir}/student_config.json", 'r') as f:
         config = json.load(f)
-    tokenizer = attrs[2].from_pretrained(attrs[0])
-    teacher_model = attrs[3].from_pretrained(attrs[0])
-    args.embedding_size = teacher_model.config.hidden_size
+        
+    model_path = attrs[0]
+    if 'conv' in model_path:
+        model_path = f"{args.ckpt_dir}/{model_path.split('-')[0]}"
+        
+    tokenizer = attrs[2].from_pretrained(model_path)
     args.hidden_size = config['hidden_size']
     args.num_heads = config['num_heads']
     args.num_layers = config['num_layers']
     
-    embeddings = teacher_model.embeddings
-    model = StudentModel(args, embeddings)
-    model.load_state_dict(torch.load(f"{model_path}/{args.ckpt_name}"))
+    model = None
+    if load_model:
+        teacher_model = attrs[3].from_pretrained(model_path)
+        args.embedding_size = teacher_model.config.hidden_size
+        embeddings = teacher_model.embeddings
+        model = StudentModel(args, embeddings)
+        model.load_state_dict(torch.load(f"{model_dir}/{args.ckpt_name}.pt"))
     
     return config, tokenizer, model, attrs
 
@@ -104,4 +119,3 @@ class StudentModel(nn.Module):
         outputs = self.encoder(src=input_embs.transpose(0, 1), src_key_padding_mask=attention_mask)  # (S_L, B, D_S)
         
         return outputs.transpose(0, 1)  # (B, S_L, D_S)
-    

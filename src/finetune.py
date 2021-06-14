@@ -1,26 +1,17 @@
-from transformers import *
-from tqdm import tqdm
 from torch.utils.data import DataLoader
-from torch import nn
-from model_utils.train_module import *
-from model_utils.encoders import setting
-from data_utils.datasets import *
+from model_utils.finetune_module import *
+from data_utils.finetune_datasets import *
 from pytorch_lightning import Trainer, seed_everything
 from pytorch_lightning.callbacks import ModelCheckpoint
-from utils import *
 
-import torch
-import os, sys
-import numpy as np
+import os
 import argparse
 import json
-import pickle
-import random
 
 
 def run(args):
     # For directory setting
-    args.dataset_dir = f"{args.data_dir}/{args.processed_dir}/{args.dataset}"
+    args.dataset_dir = f"{args.data_dir}/{args.finetune_dir}/{args.dataset}"
     assert os.path.isdir(args.dataset_dir)
     
     args.cache_dir = f"{args.cache_dir}/{args.task}/{args.dataset}/{args.model_name}"
@@ -35,7 +26,7 @@ def run(args):
     args.num_classes = len(args.class_dict)
     
     print(f"Loading training module for {args.task}...")   
-    module = TrainModule(args)
+    module = FinetuneModule(args)
     args = module.args
     
     print("Loading datasets...")
@@ -126,7 +117,7 @@ if __name__=='__main__':
     parser.add_argument('--dataset', required=True, type=str, help="The name of the dataset.")
     parser.add_argument('--cache_dir', type=str, default="cached", help="The directory path for pre-processed data pickles.")
     parser.add_argument('--data_dir', type=str, default="data", help="The parent directory path for data files.")
-    parser.add_argument('--processed_dir', type=str, default="processed", help="The directory path to finetuning data files.")
+    parser.add_argument('--finetune_dir', type=str, default="finetune", help="The directory path to finetuning data files.")
     parser.add_argument('--class_dict_name', type=str, default="class_dict", help="The name of class dictionary json file.")
     parser.add_argument('--train_prefix', type=str, default="train", help="The prefix of file name related to train set.")
     parser.add_argument('--valid_prefix', type=str, default="valid", help="The prefix of file name related to valid set.")
@@ -143,6 +134,7 @@ if __name__=='__main__':
     parser.add_argument('--cached', action="store_true", help="Using the cached data or not?")
     parser.add_argument('--seed', type=int, default=0, help="The seed number.")
     parser.add_argument('--model_name', required=True, type=str, help="The encoder model to test.")
+    parser.add_argument('--pooling', required=True, type=str, help="Pooling method: CLS/Mean/Max")
     parser.add_argument('--ckpt_dir', required=False, type=str, help="If only training from a specific checkpoint...")
     parser.add_argument('--ckpt_name', required=False, type=str, help="If only training from a specific checkpoint...")
     parser.add_argument('--gpu', type=str, default="0")
@@ -152,12 +144,18 @@ if __name__=='__main__':
     
     assert args.task == 'intent' or args.task == 'entity' or args.task == 'action', "You must specify a correct dialogue task."
     assert args.model_name in [
-        'bert',  'convbert', 'albert', 'distilbert', 'todbert',
+        'bert',  'convbert', 'albert', 'distilbert', 'todbert', 'sentbert-cls', 'sentbert-mean', 'sentbert-max',
+        'dialogsentbert-cls', 'dialogsentbert-mean', 'dialogsentbert-max',
         'bert-teacher', 'convbert-teacher', 'albert-teacher', 'distilbert-teacher', 'todbert-teacher',
         'bert-student', 'convbert-student', 'albert-student', 'distilbert-student', 'todbert-student'
     ], "You must specify a correct model name."
+    assert args.pooling in ['cls', 'mean', 'max']
+    if 'sent' in args.model_name:
+        assert args.model_name.split('-')[-1] == args.pooling
     if 'conv' in args.model_name:
         assert args.ckpt_dir is not None
+    if 'dialogsent' in args.model_name:
+        assert args.ckpt_dir is not None and args.ckpt_name is not None
     if 'teacher' in args.model_name or 'student' in args.model_name:
         assert args.ckpt_dir is not None or args.ckpt_name is not None
     

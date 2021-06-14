@@ -1,10 +1,7 @@
-python src/data_process.py \
+python src/data_utils/finetune_data_process.py \
     --data_dir="data" \
     --raw_dir="raw" \
-    --processed="processed" \
-    --intent_dir="intent" \
-    --entity_dir="entity" \
-    --action_dir="action" \
+    --finetune_dir="finetune" \
     --train_frac=0.8 \
     --valid_frac=0.1 \
     --train_prefix="train" \

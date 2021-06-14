@@ -5,13 +5,13 @@ import json
 import pickle
 
 
-def process_data(args, processed_dir):
+def process_data(args, finetune_dir):
     data_dir = f"{args.data_dir}/{args.raw_dir}/TM-3-2020/data"
     assert os.path.isdir(data_dir), "Please check the raw data directory path."
     
-    processed_dir = f"{processed_dir}/taskmaster3"
-    if not os.path.isdir(processed_dir):
-        os.makedirs(processed_dir)
+    finetune_dir = f"{finetune_dir}/taskmaster3"
+    if not os.path.isdir(finetune_dir):
+        os.makedirs(finetune_dir)
 
     entity_class_dict = {'O': 0}
     
@@ -49,12 +49,12 @@ def process_data(args, processed_dir):
         split_data(entity_dialogues, args.train_frac, args.valid_frac)
         
     print("Saving files into pickle formats...")
-    save_file(processed_dir, args.train_prefix, train_utter_dialogues, train_entity_dialogues)
-    save_file(processed_dir, args.valid_prefix, valid_utter_dialogues, valid_entity_dialogues)
-    save_file(processed_dir, args.test_prefix, test_utter_dialogues, test_entity_dialogues)
+    save_file(finetune_dir, args.train_prefix, train_utter_dialogues, train_entity_dialogues)
+    save_file(finetune_dir, args.valid_prefix, valid_utter_dialogues, valid_entity_dialogues)
+    save_file(finetune_dir, args.test_prefix, test_utter_dialogues, test_entity_dialogues)
     
     print("Saving entity class dictionary...")
-    with open(f"{processed_dir}/entity_{args.class_dict_name}.json", 'w') as f:
+    with open(f"{finetune_dir}/entity_{args.class_dict_name}.json", 'w') as f:
         json.dump(entity_class_dict, f)
     
     num_train_utters = count_utters(train_utter_dialogues)
@@ -103,11 +103,11 @@ def split_data(dialogues, train_frac, valid_frac):
     return train_dialogues, valid_dialogues, test_dialogues
 
 
-def save_file(processed_dir, prefix, utter_dialogues, entity_dialogues):
-    with open(f"{processed_dir}/{prefix}_utters.pickle", 'wb') as f:
+def save_file(finetune_dir, prefix, utter_dialogues, entity_dialogues):
+    with open(f"{finetune_dir}/{prefix}_utters.pickle", 'wb') as f:
         pickle.dump(utter_dialogues, f)
 
-    with open(f"{processed_dir}/{prefix}_entities.pickle", 'wb') as f:
+    with open(f"{finetune_dir}/{prefix}_entities.pickle", 'wb') as f:
         pickle.dump(entity_dialogues, f)
         
 

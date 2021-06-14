@@ -63,15 +63,22 @@ class IDDataset(Dataset):
             
             print(f"Processing {data_prefix} data...")
             for u, utter in enumerate(tqdm(utters)):
-                tokens = tokenizer.tokenize(utter)
-                token_ids = [args.cls_id] + tokenizer.convert_tokens_to_ids(tokens) + [args.sep_id]
                 
-                if len(token_ids) > args.max_encoder_len:
-                    exceed_count += 1
-                else:
-                    max_len = max(max_len, len(token_ids))
-                    self.input_ids.append(token_ids)
-                    self.labels.append(args.class_dict[labels[u]])
+                try:
+                    tokens = tokenizer.tokenize(utter)
+                    token_ids = [args.cls_id] + tokenizer.convert_tokens_to_ids(tokens) + [args.sep_id]
+
+                    if len(token_ids) > args.max_encoder_len:
+                        exceed_count += 1
+                    else:
+                        max_len = max(max_len, len(token_ids))
+                        self.input_ids.append(token_ids)
+                        self.labels.append(args.class_dict[labels[u]])
+                except:
+                    print(u)
+                    print(utter)
+                    print(labels[u])
+                    exit()
                     
             assert len(self.input_ids) == len(self.labels)
             

@@ -2,7 +2,6 @@ from torch import nn as nn
 from torch.nn import functional as F
 from transformers import get_linear_schedule_with_warmup
 from .encoders import *
-from .output_layers import *
 from utils import *
 from pytorch_lightning import seed_everything
 from argparse import Namespace
@@ -18,16 +17,17 @@ loss_funcs = {
 }
 
 
-class TrainModule(pl.LightningModule):
+class FinetuneModule(pl.LightningModule):
     def __init__(self, args):
         super().__init__()
         if isinstance(args, dict):
             args = Namespace(**args)
             
-        self.args, config, self.tokenizer, self.encoder = setting(args)
+        self.args, config, self.tokenizer, self.encoder = setting(args, load_model=True)
         
         seed_everything(self.args.seed, workers=True)
-        self.output_layer = load_output_layer(self.args)
+        self.output_layer = nn.Linear(self.args.hidden_size, self.args.num_classes)
+        nn.init.xavier_uniform_(self.output_layer.weight)
         
         self.loss_func = loss_funcs[self.args.task]
         
@@ -39,7 +39,12 @@ class TrainModule(pl.LightningModule):
             hidden_states = hidden_states[0]
         
         if self.args.task != 'entity':
-            hidden_states = hidden_states[:, 0, :]  # (B, d_h)
+            if self.args.pooling == 'cls':
+                hidden_states = hidden_states[:, 0, :]  # (B, d_h)
+            elif self.args.pooling == 'mean':
+                hidden_states = torch.mean(hidden_states, dim=1)  # (B, d_h)
+            elif self.args.pooling == 'max':
+                hidden_states = torch.max(hidden_states, dim=1).values  # (B, d_h)
             
         return self.output_layer(hidden_states)  # (B, L, C) or  (B, C)
     

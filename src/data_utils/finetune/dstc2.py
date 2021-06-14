@@ -6,13 +6,13 @@ import pickle
 import random
 
 
-def process_data(args, processed_dir):
+def process_data(args, finetune_dir):
     data_dir = f"{args.data_dir}/{args.raw_dir}/dstc2"
     assert os.path.isdir(data_dir), "Please check the raw data directory path."
         
-    processed_dir = f"{processed_dir}/dstc2"
-    if not os.path.isdir(processed_dir):
-        os.makedirs(processed_dir)
+    finetune_dir = f"{finetune_dir}/dstc2"
+    if not os.path.isdir(finetune_dir):
+        os.makedirs(finetune_dir)
     
     action_class_dict = {}
     
@@ -27,12 +27,12 @@ def process_data(args, processed_dir):
     valid_utter_dialogues, valid_action_dialogues, action_class_dict = load_dialogues(f"{data_dir}/traindev/data", valid_list, action_class_dict)
     test_utter_dialogues, test_action_dialogues, action_class_dict = load_dialogues(f"{data_dir}/test/data", test_list, action_class_dict)
     
-    save_file(processed_dir, args.train_prefix, train_utter_dialogues, train_action_dialogues)
-    save_file(processed_dir, args.valid_prefix, valid_utter_dialogues, valid_action_dialogues)
-    save_file(processed_dir, args.test_prefix, test_utter_dialogues, test_action_dialogues)
+    save_file(finetune_dir, args.train_prefix, train_utter_dialogues, train_action_dialogues)
+    save_file(finetune_dir, args.valid_prefix, valid_utter_dialogues, valid_action_dialogues)
+    save_file(finetune_dir, args.test_prefix, test_utter_dialogues, test_action_dialogues)
     
     print("Saving action class dictionary...")
-    with open(f"{processed_dir}/action_{args.class_dict_name}.json", 'w') as f:
+    with open(f"{finetune_dir}/action_{args.class_dict_name}.json", 'w') as f:
         json.dump(action_class_dict, f)
     
     num_train_utters = count_utters(train_utter_dialogues)
@@ -120,11 +120,11 @@ def split_data(dialogues, train_frac=0.75):
     return train_dialogues, valid_dialogues
 
 
-def save_file(processed_dir, prefix, utter_dialogues, action_dialogues):
-    with open(f"{processed_dir}/{prefix}_utters.pickle", 'wb') as f:
+def save_file(finetune_dir, prefix, utter_dialogues, action_dialogues):
+    with open(f"{finetune_dir}/{prefix}_utters.pickle", 'wb') as f:
         pickle.dump(utter_dialogues, f)
         
-    with open(f"{processed_dir}/{prefix}_actions.pickle", 'wb') as f:
+    with open(f"{finetune_dir}/{prefix}_actions.pickle", 'wb') as f:
         pickle.dump(action_dialogues, f)
         
         

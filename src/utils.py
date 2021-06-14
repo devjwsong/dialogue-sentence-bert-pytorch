@@ -9,6 +9,13 @@ import numpy as np
 import random
 
 
+def binary_scores(preds, trues, round_num=4):
+    acc = accuracy_score(trues, preds)
+    f1 = sklearn_f1(trues, preds, average='micro')
+    
+    return {'acc': round(acc, round_num), 'f1': round(f1, round_num)}
+
+
 def intent_scores(preds, trues, intent_class_dict=None, round_num=4):
     all_acc = accuracy_score(trues, preds)
     all_f1 = sklearn_f1(trues, preds, average='micro')
@@ -101,10 +108,3 @@ def action_scores(preds, trues, round_num=4):
     }
     
     return scores
-
-
-def fix_seed(seed):
-    np.random.seed(seed)
-    torch.manual_seed(seed)
-    torch.cuda.manual_seed_all(seed)
-    random.seed(seed)
