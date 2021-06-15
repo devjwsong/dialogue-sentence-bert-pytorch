@@ -75,7 +75,8 @@ def run(args):
         gradient_clip_val=args.max_grad_norm,
         num_sanity_val_steps=0,
         deterministic=True,
-        callbacks=[checkpoint_callback]
+        callbacks=[checkpoint_callback],
+        accelerator="ddp"
     )
     
     print("Train starts.")

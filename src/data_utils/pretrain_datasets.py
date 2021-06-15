@@ -125,33 +125,34 @@ class PretrainDataset(Dataset):
             
             print("Sampling same action sequences...")
             for action, seqs in action2seqs.items():
-                N = int(math.sqrt(2 * num_samples))
-                N = min(len(seqs), N)
-                sampled_seqs = random.sample(seqs, N)
-                for i in tqdm(range(len(sampled_seqs))):
-                    for j in range(len(sampled_seqs)):
-                        if i < j:
-                            max_len = max(max_len, len(sampled_seqs[i]))
-                            max_len = max(max_len, len(sampled_seqs[j]))
-                            input_ids_0.append(sampled_seqs[i])
-                            input_ids_1.append(sampled_seqs[j])
-                            labels.append(class_dict['same'])
-                            num_seqs[class_dict['same']] += 1
-                            
-                            if len(input_ids_0) == args.group_size:
-                                save_pickles(
-                                    self.cached_dir, self.data_prefix, self.input_prefix, self.label_prefix, 
-                                    cur_group_idx, input_ids_0, input_ids_1, labels
-                                )
-                                input_ids_0, input_ids_1, labels = [], [], []
-                                cur_group_idx += 1
+                N = math.sqrt(num_samples)
+                N = int(min(len(seqs), 2 * N) / 2)
+                sampled_seqs = random.sample(seqs, 2 * N)
+                sampled_seqs_0 = sampled_seqs[:N]
+                sampled_seqs_1 = sampled_seqs[N:2*N]
+                for i in tqdm(range(len(sampled_seqs_0))):
+                    for j in range(len(sampled_seqs_1)):
+                        max_len = max(max_len, len(sampled_seqs_0[i]))
+                        max_len = max(max_len, len(sampled_seqs_1[j]))
+                        input_ids_0.append(sampled_seqs_0[i])
+                        input_ids_1.append(sampled_seqs_1[j])
+                        labels.append(class_dict['same'])
+                        num_seqs[class_dict['same']] += 1
+
+                        if len(input_ids_0) == args.group_size:
+                            save_pickles(
+                                self.cached_dir, self.data_prefix, self.input_prefix, self.label_prefix, 
+                                cur_group_idx, input_ids_0, input_ids_1, labels
+                            )
+                            input_ids_0, input_ids_1, labels = [], [], []
+                            cur_group_idx += 1
                             
             print("Sampling different action sequences...")
             for a0, (action_0, seqs_0) in enumerate(action2seqs.items()):
                 for a1, (action_1, seqs_1) in enumerate(action2seqs.items()):
                     if a0 < a1:
-                        N = int(math.sqrt(2 * num_samples / (len(action2seqs)-1)))
-                        N = min(min(len(seqs_0), len(seqs_1)), N)
+                        N = math.sqrt(2 * num_samples / (len(action2seqs)-1))
+                        N = int(min(min(len(seqs_0), len(seqs_1)), N))
                         sampled_seqs_0 = random.sample(seqs_0, N)
                         sampled_seqs_1 = random.sample(seqs_1, N)
                         
