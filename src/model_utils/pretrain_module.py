@@ -1,5 +1,4 @@
 from torch import nn as nn
-from torch.nn import functional as F
 from transformers import get_linear_schedule_with_warmup
 from .encoders import *
 from utils import *
@@ -68,7 +67,7 @@ class PretrainModule(pl.LightningModule):
             train_preds += result['preds']
             train_trues += result['trues']
             
-        scores = binary_scores(train_preds, train_trues, round_num=4)
+        scores = pretrain_scores(train_preds, train_trues, round_num=4)
         
         self.log('train_loss', np.mean(train_losses), on_step=False, on_epoch=True, prog_bar=True, logger=True)
         for metric, value in scores.items():
@@ -96,7 +95,7 @@ class PretrainModule(pl.LightningModule):
             valid_preds += result['preds']
             valid_trues += result['trues']
         
-        scores = binary_scores(valid_preds, valid_trues, round_num=4)
+        scores = pretrain_scores(valid_preds, valid_trues, round_num=4)
         
         self.log('valid_loss', np.mean(valid_losses), on_step=False, on_epoch=True, prog_bar=True, logger=True)
         for metric, value in scores.items():

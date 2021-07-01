@@ -3,7 +3,6 @@ from tqdm import tqdm
 import os
 import json
 import pickle
-import random
 
 
 def process_data(args, finetune_dir):
@@ -110,14 +109,6 @@ def find_actions(dialog_acts, action_class_dict, speaker):
         action_list.append(("", action))
         
     return list(set(action_list)), action_class_dict
-
-
-def split_data(dialogues, train_frac=0.75):
-    random.seed(777)
-    train_dialogues = dialogues[:int(len(dialogues) * train_frac)]
-    valid_dialogues = dialogues[int(len(dialogues) * train_frac):]
-    
-    return train_dialogues, valid_dialogues
 
 
 def save_file(finetune_dir, prefix, utter_dialogues, action_dialogues):

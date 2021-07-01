@@ -63,7 +63,9 @@ def process_data(args, pretrain_dir):
 
             action_tags = list(set([action_map[action_tag['name']] for action_tag in action_tags]))
             action_hists.append(action_tags)
-            
+        
+        assert len(utter_hists) == len(action_hists)
+        
         utters.append(utter_hists)
         actions.append(action_hists)
             

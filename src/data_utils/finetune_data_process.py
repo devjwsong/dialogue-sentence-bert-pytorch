@@ -1,11 +1,10 @@
-from tqdm import tqdm
-from finetune import oos, banking77, atis, multiwoz, taskmaster3, dstc2, sim
+from finetune import oos, banking77, atis, multiwoz, dstc2, sim
 
 import argparse
 import os
 
 
-data_list = ["oos", "banking77", "atis", "multiwoz", "taskmaster3", "dstc2", "sim"]
+data_list = ["oos", "banking77", "atis", "multiwoz", "dstc2", "sim"]
             
 
 def process_data(args, finetune_dir):
@@ -25,8 +24,6 @@ def process_data(args, finetune_dir):
             atis.process_data(args, finetune_dir)
         elif data_name == 'multiwoz':
             multiwoz.process_data(args, finetune_dir)
-        elif data_name == 'taskmaster3':
-            taskmaster3.process_data(args, finetune_dir)
         elif data_name == 'dstc2':
             dstc2.process_data(args, finetune_dir)
         elif data_name == 'sim':

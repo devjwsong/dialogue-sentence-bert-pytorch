@@ -1,4 +1,3 @@
-from tqdm import tqdm
 from pretrain import schema, frames, e2e
 
 import argparse

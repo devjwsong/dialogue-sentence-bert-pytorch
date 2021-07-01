@@ -1,5 +1,4 @@
 from torch import nn as nn
-from torch.nn import functional as F
 from transformers import get_linear_schedule_with_warmup
 from .encoders import *
 from utils import *
@@ -12,7 +11,6 @@ import pytorch_lightning as pl
 
 loss_funcs = {
     'intent': nn.CrossEntropyLoss(),
-    'entity': nn.CrossEntropyLoss(ignore_index=-1),
     'action': nn.BCEWithLogitsLoss()
 }
 
@@ -34,25 +32,19 @@ class FinetuneModule(pl.LightningModule):
         self.save_hyperparameters(args)
         
     def forward(self, input_ids, padding_masks=None):  # input_ids: (B, L), padding_masks: (B, L)
-        hidden_states = self.encoder(input_ids=input_ids, attention_mask=padding_masks)  # (B, L, d_h)
-        if 'student' not in self.args.model_name:
-            hidden_states = hidden_states[0]
+        hidden_states = self.encoder(input_ids=input_ids, attention_mask=padding_masks)[0]  # (B, L, d_h)
         
-        if self.args.task != 'entity':
-            if self.args.pooling == 'cls':
-                hidden_states = hidden_states[:, 0, :]  # (B, d_h)
-            elif self.args.pooling == 'mean':
-                hidden_states = torch.mean(hidden_states, dim=1)  # (B, d_h)
-            elif self.args.pooling == 'max':
-                hidden_states = torch.max(hidden_states, dim=1).values  # (B, d_h)
+        if self.args.pooling == 'cls':
+            hidden_states = hidden_states[:, 0, :]  # (B, d_h)
+        elif self.args.pooling == 'mean':
+            hidden_states = torch.mean(hidden_states, dim=1)  # (B, d_h)
+        elif self.args.pooling == 'max':
+            hidden_states = torch.max(hidden_states, dim=1).values  # (B, d_h)
             
         return self.output_layer(hidden_states)  # (B, L, C) or  (B, C)
     
     def make_masks(self, input_ids):
-        if 'student' in self.args.model_name:
-            return (input_ids == self.args.pad_id)  # (B, L)
-        else:
-            return (input_ids != self.args.pad_id).float()  # (B, L)
+        return (input_ids != self.args.pad_id).float()  # (B, L)
     
     def training_step(self, batch, batch_idx):
         input_ids, labels = batch  # input_ids: (B, L), labels: (B, L, C) or (B, C)
@@ -63,9 +55,6 @@ class FinetuneModule(pl.LightningModule):
         if self.args.task == 'intent':
             loss = self.loss_func(outputs, labels)  # ()
             preds, trues = self.get_intent_results(outputs, labels)
-        elif self.args.task == 'entity':
-            loss = self.loss_func(outputs.view(-1, self.args.num_classes), labels.view(-1))  # ()
-            preds, trues = self.get_entity_results(outputs, labels)
         elif self.args.task == 'action':
             loss = self.loss_func(outputs, labels.float())  # ()
             preds, trues = self.get_action_results(outputs, labels)
@@ -87,8 +76,6 @@ class FinetuneModule(pl.LightningModule):
             if self.args.dataset == 'oos':
                 intent_class_dict = self.args.class_dict
             scores = intent_scores(train_preds, train_trues, intent_class_dict, round_num=4)
-        elif self.args.task == 'entity':
-            scores = entity_scores(train_preds, train_trues, self.args.class_dict, round_num=4)
         elif self.args.task == 'action':
             scores = action_scores(train_preds, train_trues, round_num=4)
         
@@ -105,9 +92,6 @@ class FinetuneModule(pl.LightningModule):
         if self.args.task == 'intent':
             loss = self.loss_func(outputs, labels)  # ()
             preds, trues = self.get_intent_results(outputs, labels)  
-        elif self.args.task == 'entity':
-            loss = self.loss_func(outputs.view(-1, self.args.num_classes), labels.view(-1))  # ()
-            preds, trues = self.get_entity_results(outputs, labels)
         elif self.args.task == 'action':
             loss = self.loss_func(outputs, labels.float())  # ()
             preds, trues = self.get_action_results(outputs, labels)
@@ -129,8 +113,6 @@ class FinetuneModule(pl.LightningModule):
             if self.args.dataset == 'oos':
                 intent_class_dict = self.args.class_dict
             scores = intent_scores(valid_preds, valid_trues, intent_class_dict, round_num=4)
-        elif self.args.task == 'entity':
-            scores = entity_scores(valid_preds, valid_trues, self.args.class_dict, round_num=4)
         elif self.args.task == 'action':
             scores = action_scores(valid_preds, valid_trues, round_num=4)
         
@@ -147,9 +129,6 @@ class FinetuneModule(pl.LightningModule):
         if self.args.task == 'intent':
             loss = self.loss_func(outputs, labels)  # ()
             preds, trues = self.get_intent_results(outputs, labels)
-        elif self.args.task == 'entity':
-            loss = self.loss_func(outputs.view(-1, self.args.num_classes), labels.view(-1))  # ()
-            preds, trues = self.get_entity_results(outputs, labels)
         elif self.args.task == 'action':
             loss = self.loss_func(outputs, labels.float())  # ()
             preds, trues = self.get_action_results(outputs, labels)
@@ -171,8 +150,6 @@ class FinetuneModule(pl.LightningModule):
             if self.args.dataset == 'oos':
                 intent_class_dict = self.args.class_dict
             scores = intent_scores(test_preds, test_trues, intent_class_dict, round_num=4)
-        elif self.args.task == 'entity':
-            scores = entity_scores(test_preds, test_trues, self.args.class_dict, round_num=4)
         elif self.args.task == 'action':
             scores = action_scores(test_preds, test_trues, round_num=4)
         
@@ -188,20 +165,6 @@ class FinetuneModule(pl.LightningModule):
         
         assert len(preds) == len(trues)
         
-        return preds, trues
-    
-    def get_entity_results(self, outputs, labels):
-        _, preds = torch.max(outputs, dim=-1)  # (B, L)
-        
-        preds = preds.tolist()
-        trues = labels.tolist()
-        true_labels = (labels != -1).tolist()
-        spots = [(label.index(True), len(label)-list(reversed(label)).index(True)) for label in true_labels]
-        preds = [pred[spots[p][0]:spots[p][1]] for p, pred in enumerate(preds)]
-        trues = [true[spots[t][0]:spots[t][1]] for t, true in enumerate(trues)]
-        
-        assert len(preds) == len(trues)
-
         return preds, trues
         
     def get_action_results(self, outputs, labels):

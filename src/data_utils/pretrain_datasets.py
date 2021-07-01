@@ -1,15 +1,13 @@
 from torch.utils.data import Dataset
-from torch.nn import functional as F
 from tqdm import tqdm
 from itertools import chain
 
 import torch
-import os, sys
+import os
 import pickle
 import copy
 import natsort
 import random
-import math
 
 
 def load_data(data_list, pretrain_dir, data_prefix):
@@ -36,12 +34,12 @@ def get_context_len(utters):
 def flat_seq(utters, args):
     if len(utters) > 1:
         utters[0] = [args.cls_id] + utters[0]
+        utters[-2] = utters[-2] + [args.sep_id]
     else:
         utters.insert(0, [args.cls_id])
-    utters[-1] = [args.sep_id] + utters[-1] + [args.sep_id]
+    utters[-1] = utters[-1] + [args.sep_id]
     
     context_len = get_context_len(utters)
-    
     if context_len + len(utters[-1]) > args.max_encoder_len:
         return None
 
@@ -67,10 +65,10 @@ def make_action2seqs(args, utters, actions, tokenizer):
             if len(action_list) > 0:
                 seq = flat_seq(copy.deepcopy(utter_hists), args)
                 if seq is not None:
-                    for action in action_list:
-                        if action not in action2seqs:
-                            action2seqs[action] = []
-                        action2seqs[action].append(seq)
+                    action_set = frozenset(sorted(action_list))
+                    if action_set not in action2seqs:
+                        action2seqs[action_set] = []
+                    action2seqs[action_set].append(seq)
                         
     return action2seqs
 
@@ -100,9 +98,13 @@ class PretrainDataset(Dataset):
         self.label_prefix = args.label_prefix
         
         if self.data_prefix == args.train_prefix:
-            num_samples = args.num_train_samples
+            num_same_samples = args.num_train_same_samples
+            num_diff_samples = args.num_train_diff_samples
+            num_neut_samples = args.num_train_neut_samples
         elif self.data_prefix == args.valid_prefix:
-            num_samples = args.num_valid_samples
+            num_same_samples = args.num_valid_same_samples
+            num_diff_samples = args.num_valid_diff_samples
+            num_neut_samples = args.num_valid_neut_samples
         
         if not args.cached:
             print("Since you chosed not to use cached data, pre-processing is conducted first.")
@@ -112,60 +114,62 @@ class PretrainDataset(Dataset):
             data_list = os.listdir(args.pretrain_dir)
             data_list = [data for data in data_list if not data.startswith('.')]
             utters, actions = load_data(data_list, args.pretrain_dir, data_prefix)
-
-            print("Calculating action-seq distributions...")
+            
+            print("Making action-seq distributions...")
             action2seqs = make_action2seqs(args, utters, actions, tokenizer)
             for action, seqs in action2seqs.items():
                 print(f"{action}: {len(seqs)}")
-            
-            print("Making pairs...")
+                
+            print("Sampling pairs...")
+            random.seed(args.seed)
             input_ids_0, input_ids_1, labels = [], [], []
             cur_group_idx = 0
-            random.seed(args.seed)
-            
-            print("Sampling same action sequences...")
-            for action, seqs in action2seqs.items():
-                N = math.sqrt(num_samples)
-                N = int(min(len(seqs), 2 * N) / 2)
-                sampled_seqs = random.sample(seqs, 2 * N)
-                sampled_seqs_0 = sampled_seqs[:N]
-                sampled_seqs_1 = sampled_seqs[N:2*N]
-                for i in tqdm(range(len(sampled_seqs_0))):
-                    for j in range(len(sampled_seqs_1)):
-                        max_len = max(max_len, len(sampled_seqs_0[i]))
-                        max_len = max(max_len, len(sampled_seqs_1[j]))
-                        input_ids_0.append(sampled_seqs_0[i])
-                        input_ids_1.append(sampled_seqs_1[j])
-                        labels.append(class_dict['same'])
-                        num_seqs[class_dict['same']] += 1
-
-                        if len(input_ids_0) == args.group_size:
-                            save_pickles(
-                                self.cached_dir, self.data_prefix, self.input_prefix, self.label_prefix, 
-                                cur_group_idx, input_ids_0, input_ids_1, labels
-                            )
-                            input_ids_0, input_ids_1, labels = [], [], []
-                            cur_group_idx += 1
-                            
-            print("Sampling different action sequences...")
-            for a0, (action_0, seqs_0) in enumerate(action2seqs.items()):
-                for a1, (action_1, seqs_1) in enumerate(action2seqs.items()):
-                    if a0 < a1:
-                        N = math.sqrt(2 * num_samples / (len(action2seqs)-1))
-                        N = int(min(min(len(seqs_0), len(seqs_1)), N))
-                        sampled_seqs_0 = random.sample(seqs_0, N)
-                        sampled_seqs_1 = random.sample(seqs_1, N)
+            for a0, (action0, seqs0) in enumerate(action2seqs.items()):
+                for a1, (action1, seqs1) in enumerate(action2seqs.items()):
+                    random.shuffle(seqs0)
+                    random.shuffle(seqs1)
+                    if a0 == a1:
+                        print(f"Same action: {action0} : {action1}")
+                        sampled_seqs0, sampled_seqs1 = seqs0[:num_same_samples], seqs1[num_same_samples:2*num_same_samples]
+                        for s0, seq0 in enumerate(tqdm(sampled_seqs0)):
+                            for s1, seq1 in enumerate(sampled_seqs1):
+                                if s0 < s1:
+                                    max_len = max(max_len, max(len(seq0), len(seq1)))
+                                    input_ids_0.append(seq0)
+                                    input_ids_1.append(seq1)
+                                    labels.append(class_dict['same'])
+                                    num_seqs[class_dict['same']] += 1
+                                    
+                                    if len(input_ids_0) == args.group_size \
+                                            or is_finished(a0, a1, s0, s1, len(action2seqs), len(sampled_seqs0), len(sampled_seqs1)):
+                                        save_pickles(
+                                            self.cached_dir, self.data_prefix, self.input_prefix, self.label_prefix, 
+                                            cur_group_idx, input_ids_0, input_ids_1, labels
+                                        )
+                                        input_ids_0, input_ids_1, labels = [], [], []
+                                        cur_group_idx += 1
+                    elif a0 < a1:
+                        if ((action0 - action1) == action0):
+                            print(f"Different action: {action0} : {action1}")
+                            sampled_seqs0, sampled_seqs1 = seqs0[:num_diff_samples], seqs1[:num_diff_samples]
+                            class_name = 'diff'
+                        elif len(action0 & action1) > 0:
+                            print(f"Neutral action: {action0} : {action1}")
+                            sampled_seqs0, sampled_seqs1 = seqs0[:num_neut_samples], seqs1[:num_neut_samples]
+                            class_name = 'neut'
+                        else:
+                            continue
                         
-                        for i in tqdm(range(len(sampled_seqs_0))):
-                            for j in range(len(sampled_seqs_1)):
-                                max_len = max(max_len, len(sampled_seqs_0[i]))
-                                max_len = max(max_len, len(sampled_seqs_1[j]))
-                                input_ids_0.append(sampled_seqs_0[i])
-                                input_ids_1.append(sampled_seqs_1[j])
-                                labels.append(class_dict['diff'])
-                                num_seqs[class_dict['diff']] += 1
+                        for s0, seq0 in enumerate(tqdm(sampled_seqs0)):
+                            for s1, seq1 in enumerate(sampled_seqs1):
+                                max_len = max(max_len, max(len(seq0), len(seq1)))
+                                input_ids_0.append(seq0)
+                                input_ids_1.append(seq1)
+                                labels.append(class_dict[class_name])
+                                num_seqs[class_dict[class_name]] += 1
 
-                                if len(input_ids_0) == args.group_size or is_finished(a0, a1, i, j, len(action2seqs), len(sampled_seqs_0), len(sampled_seqs_1)):
+                                if len(input_ids_0) == args.group_size \
+                                        or is_finished(a0, a1, s0, s1, len(action2seqs), len(sampled_seqs0), len(sampled_seqs1)):
                                     save_pickles(
                                         self.cached_dir, self.data_prefix, self.input_prefix, self.label_prefix, 
                                         cur_group_idx, input_ids_0, input_ids_1, labels

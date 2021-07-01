@@ -13,7 +13,6 @@ def process_data(args, finetune_dir):
     if not os.path.isdir(finetune_dir):
         os.makedirs(finetune_dir)
 
-    entity_class_dict = {'O': 0}
     action_class_dict = {}
     
     data_types = ['train', 'dev', 'test']
@@ -25,8 +24,7 @@ def process_data(args, finetune_dir):
     num_test_utters = 0
     for data_type in data_types:
         print(f"Processing {data_type} set...")
-        utter_dialogues, entity_dialogues, action_dialogues, entity_class_dict, action_class_dict =\
-            load_dialogues(data_dir, data_type, entity_class_dict, action_class_dict, args)
+        utter_dialogues, action_dialogues, action_class_dict = load_dialogues(data_dir, data_type, action_class_dict, args)
         
         if data_type == 'train':
             num_train_dialogues = len(utter_dialogues)
@@ -41,27 +39,13 @@ def process_data(args, finetune_dir):
             num_test_utters = count_utters(utter_dialogues)
             prefix = data_type
 
-        save_file(finetune_dir, prefix, utter_dialogues, entity_dialogues, action_dialogues)
-
-    print("Saving entity class dictionary...")
-    with open(f"{finetune_dir}/entity_{args.class_dict_name}.json", 'w') as f:
-        json.dump(entity_class_dict, f)
+        save_file(finetune_dir, prefix, utter_dialogues, action_dialogues)
         
     print("Saving action class dictionary...")
     with open(f"{finetune_dir}/action_{args.class_dict_name}.json", 'w') as f:
         json.dump(action_class_dict, f)
         
     print("<Data Anaysis>")
-    
-    print("Task: Entity Recognition")
-    print(f"# of train dialogues: {num_train_dialogues}")
-    print(f"# of train utterances: {num_train_utters}")
-    print(f"# of valid dialogues: {num_valid_dialogues}")
-    print(f"# of valid utterances: {num_valid_utters}")
-    print(f"# of test dialogues: {num_test_dialogues}")
-    print(f"# of test utterances: {num_test_utters}")
-    print(f"# of classes: {len(entity_class_dict)}")
-    
     print("Task: Action Prediction")
     print(f"# of train dialogues: {num_train_dialogues}")
     print(f"# of train utterances: {num_train_utters}")
@@ -74,9 +58,8 @@ def process_data(args, finetune_dir):
     print("Done.")
 
     
-def load_dialogues(data_dir, data_type, entity_class_dict, action_class_dict, args):
+def load_dialogues(data_dir, data_type, action_class_dict, args):
     utter_dialogues = []
-    entity_dialogues = []
     action_dialogues = []
     
     domains = ['Movie', 'Restaurant']
@@ -88,7 +71,6 @@ def load_dialogues(data_dir, data_type, entity_class_dict, action_class_dict, ar
             turns = dialogue['turns']
 
             utter_dialogue = []
-            entity_dialogue = []
             action_dialogue = []
             for t, turn in enumerate(turns):
                 if 'system_acts' in turn:
@@ -99,10 +81,7 @@ def load_dialogues(data_dir, data_type, entity_class_dict, action_class_dict, ar
                     
                     utter_dialogue.append(f"sys:{sys_utter}")
                     
-                    entity_list, entity_class_dict = find_entities(domain, sys_slots, sys_tokens, entity_class_dict, speaker='sys')
                     action_list, action_class_dict = find_actions(domain, sys_acts, action_class_dict, speaker='sys')
-            
-                    entity_dialogue.append(entity_list)
                     action_dialogue.append(action_list)
                 
                 usr_utter = turn['user_utterance']['text']
@@ -111,40 +90,18 @@ def load_dialogues(data_dir, data_type, entity_class_dict, action_class_dict, ar
                 usr_acts = turn['user_acts']
                 
                 utter_dialogue.append(f"usr:{usr_utter}")
-                
-                entity_list, entity_class_dict = find_entities(domain, usr_slots, usr_tokens, entity_class_dict, speaker='usr')
+    
                 action_list, action_class_dict = find_actions(domain, usr_acts, action_class_dict, speaker='usr')
-                
-                entity_dialogue.append(entity_list)
                 action_dialogue.append(action_list)
             
-            assert len(utter_dialogue) == len(entity_dialogue)
             assert len(utter_dialogue) == len(action_dialogue)
             
             utter_dialogues.append(utter_dialogue)
-            entity_dialogues.append(entity_dialogue)
             action_dialogues.append(action_dialogue)
             
-    assert len(utter_dialogues) == len(entity_dialogues)
     assert len(utter_dialogues) == len(action_dialogues)
             
-    return utter_dialogues, entity_dialogues, action_dialogues, entity_class_dict, action_class_dict
-
-
-def find_entities(domain, slots, tokens, entity_class_dict, speaker):
-    entity_list = []
-    
-    for slot in slots:
-        entity_type = slot['slot']
-        if f"B-{domain}-{entity_type}" not in entity_class_dict and speaker=='usr':
-            entity_class_dict[f"B-{domain}-{entity_type}"] = len(entity_class_dict)
-            entity_class_dict[f"I-{domain}-{entity_type}"] = len(entity_class_dict)
-        
-        start = slot['start']
-        exclusive_end = slot['exclusive_end']
-        entity_list.append((f"{domain}-{entity_type}", ' '.join(tokens[start:exclusive_end]), start, exclusive_end))
-    
-    return entity_list, entity_class_dict
+    return utter_dialogues, action_dialogues, action_class_dict
 
 
 def find_actions(domain, acts, action_class_dict, speaker):
@@ -161,12 +118,9 @@ def find_actions(domain, acts, action_class_dict, speaker):
     return list(set(action_list)), action_class_dict
 
 
-def save_file(finetune_dir, prefix, utter_dialogues, entity_dialogues, action_dialogues):
+def save_file(finetune_dir, prefix, utter_dialogues, action_dialogues):
     with open(f"{finetune_dir}/{prefix}_utters.pickle", 'wb') as f:
         pickle.dump(utter_dialogues, f)
-
-    with open(f"{finetune_dir}/{prefix}_entities.pickle", 'wb') as f:
-        pickle.dump(entity_dialogues, f)
         
     with open(f"{finetune_dir}/{prefix}_actions.pickle", 'wb') as f:
         pickle.dump(action_dialogues, f)

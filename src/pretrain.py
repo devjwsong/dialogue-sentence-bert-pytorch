@@ -6,7 +6,6 @@ from pytorch_lightning.callbacks import ModelCheckpoint
 
 import os
 import argparse
-import random
 
 
 def run(args):
@@ -20,7 +19,8 @@ def run(args):
 
     class_dict = {
         "same": 0,
-        "diff": 1
+        "diff": 1,
+        "neut": 2,
     }
     args.num_classes = len(class_dict)
     
@@ -39,7 +39,6 @@ def run(args):
     
     # Reset random seed for data shuffle
     seed_everything(args.seed, workers=True)
-
     train_loader = DataLoader(train_set, collate_fn=ppd.pad_collate, batch_size=args.batch_size, shuffle=True, num_workers=args.num_workers, pin_memory=True)
     valid_loader = DataLoader(valid_set, collate_fn=ppd.pad_collate, batch_size=args.batch_size, num_workers=args.num_workers, pin_memory=True)
     
@@ -52,10 +51,10 @@ def run(args):
     args.warmup_steps = int(args.warmup_prop * args.total_train_steps)
 
     print("Setting pytorch lightning callback & trainer...")
+    
     # Model checkpoint callback
     filename = f"{args.model_name}_{args.pooling}" + "_{epoch}_{train_acc:.4f}_{valid_acc:.4f}"
     monitor = "valid_acc"
-    
     checkpoint_callback = ModelCheckpoint(
         filename=filename,
         verbose=True,
@@ -102,30 +101,28 @@ if __name__=='__main__':
     parser.add_argument('--batch_size', type=int, default=16, help="The batch size in one process.")
     parser.add_argument('--num_workers', type=int, default=0, help="The number of workers for data loading.")
     parser.add_argument('--max_encoder_len', type=int, default=512, help="The maximum length of a sequence.")
-    parser.add_argument('--learning_rate', type=float, default=5e-5, help="The starting learning rate.")
-    parser.add_argument('--warmup_prop', type=float, default=0.0)
+    parser.add_argument('--learning_rate', type=float, default=2e-5, help="The starting learning rate.")
+    parser.add_argument('--warmup_prop', type=float, default=0.0, help="The warmup step proportion.")
     parser.add_argument('--max_grad_norm', type=float, default=1.0, help="The max gradient for gradient clipping.")
-    parser.add_argument('--seed', type=int, default=0, help="The seed number.")
+    parser.add_argument('--seed', type=int, default=0, help="The random seed number.")
     parser.add_argument('--model_name', required=True, type=str, help="The encoder model to train.")
     parser.add_argument('--pooling', required=True, type=str, help="Pooling method: CLS/Mean/Max")
-    parser.add_argument('--ckpt_dir', required=False, type=str, help="If only training from a specific checkpoint...")
-    parser.add_argument('--ckpt_name', required=False, type=str, help="If only training from a specific checkpoint...")
-    parser.add_argument('--gpus', type=str, default="0")
-    parser.add_argument('--num_nodes', type=int, default=1)
-    parser.add_argument('--group_size', type=int, default=1000)
-    parser.add_argument('--num_train_samples', type=int, default=1000000)
-    parser.add_argument('--num_valid_samples', type=int, default=1000000)
+    parser.add_argument('--ckpt_dir', required=False, type=str, help="If only training from a specific checkpoint... (also convbert)")
+    parser.add_argument('--gpus', type=str, default="0", help="The indices of GPUs to use.")
+    parser.add_argument('--num_nodes', type=int, default=1, help="The number of machine.")
+    parser.add_argument('--group_size', type=int, default=1000, "The maximum number of sequences which each group file contains.")
+    parser.add_argument('--num_train_same_samples', type=int, default=1000000, help="The number of train samples extracted from a sequence list for class 0.")
+    parser.add_argument('--num_train_diff_samples', type=int, default=1000000, help="The number of train samples extracted from a sequence list for class 1.")
+    parser.add_argument('--num_train_neut_samples', type=int, default=1000000, help="The number of train samples extracted from a sequence list for class 2.")
+    parser.add_argument('--num_valid_same_samples', type=int, default=1000000, help="The number of valid samples extracted from a sequence list for class 0.")
+    parser.add_argument('--num_valid_diff_samples', type=int, default=1000000, help="The number of valid samples extracted from a sequence list for class 1.")
+    parser.add_argument('--num_valid_neut_samples', type=int, default=1000000, help="The number of valid samples extracted from a sequence list for class 2.")
     
     args = parser.parse_args()
     
-    assert args.model_name in ['bert', 'convert', 'todbert'], "You must specify a correct model name."
+    assert args.model_name in ['bert', 'convbert', 'todbert'], "You must specify a correct model name."
     assert args.pooling in ['cls', 'mean', 'max'], "You must specify a correct pooling method."
     if 'conv' in args.model_name:
         assert args.ckpt_dir is not None
-    
-    print("#"*50 + "Running spec" + "#"*50)
-    print(args)
-    
-    input("Please press Enter to proceed...")
     
     run(args)

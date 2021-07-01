@@ -17,6 +17,9 @@ def extract(args):
     model_name, pooling = args.ckpt_name.split("_")[:2]
     args.save_dir = f"{args.save_dir}/dialogsent{model_name}-{pooling}"
     
+    if not os.path.isdir(args.save_dir):
+        os.makedirs(args.save_dir)
+    
     torch.save(encoder.state_dict(), f"{args.save_dir}/{args.ckpt_name}.pt")
 
 

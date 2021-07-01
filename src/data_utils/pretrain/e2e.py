@@ -65,16 +65,17 @@ def process_data(args, pretrain_dir):
                         if len(action_tag) > 0:
                             idx = action_tag.find("(")
                             action_set.add(action_map[action_tag[:idx]])
-                            action_hists.append(list(action_set))
-                        
+                    action_hists.append(list(action_set))
+                
                 if l+1 < len(data):
                     next_sess_id = data[l+1][0]
                     if next_sess_id != sess_id:
                         utters.append(utter_hists)
                         actions.append(action_hists)
-                        utter_hists, actions_hists = [], []
+                        utter_hists, action_hists = [], []
                         is_skip = False
                 else:
+                    assert len(utter_hists) == len(action_hists), f"{len(utter_hists)} || {len(action_hists)}"
                     utters.append(utter_hists)
                     actions.append(action_hists)
                     

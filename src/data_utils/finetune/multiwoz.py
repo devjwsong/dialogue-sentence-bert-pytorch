@@ -15,7 +15,6 @@ def process_data(args, finetune_dir):
     if not os.path.isdir(finetune_dir):
         os.makedirs(finetune_dir)
 
-    entity_class_dict = {'O': 0}
     action_class_dict = {}
 
     domain2idxs = {}
@@ -26,13 +25,11 @@ def process_data(args, finetune_dir):
    
     print("Parsing dialogues...")
     utter_dialogues = []
-    entity_dialogues = []
     action_dialogues = []
     for dialogue_id, dialogue in tqdm(data.items()):
         domains = [k for k, v in dialogue['goal'].items() if k != 'topic' and k != 'message' and len(v) > 0]
         
         utter_dialogue = []
-        entity_dialogue = []
         action_dialogue = []
         
         for t, turn in enumerate(dialogue['log']):
@@ -45,20 +42,16 @@ def process_data(args, finetune_dir):
             else:  # System
                 speaker = 'sys'
                 
-            entity_list, entity_class_dict = find_entities(span_info, entity_class_dict, speaker)
             action_list, action_class_dict = find_actions(dialog_act, action_class_dict, speaker)
             
             utter = turn['text'].replace('\n', '')
             
             utter_dialogue.append(f"{speaker}:{utter}")
-            entity_dialogue.append(entity_list)
             action_dialogue.append(action_list)
 
-        assert len(utter_dialogue) == len(entity_dialogue)
         assert len(utter_dialogue) == len(action_dialogue)
         
         utter_dialogues.append(utter_dialogue)
-        entity_dialogues.append(entity_dialogue)
         action_dialogues.append(action_dialogue)
         
         idx = len(utter_dialogues)-1
@@ -67,7 +60,6 @@ def process_data(args, finetune_dir):
             domain2idxs[domain] = []
         domain2idxs[domain].append(idx)
     
-    assert len(utter_dialogues) == len(entity_dialogues)
     assert len(utter_dialogues) == len(action_dialogues)
     
     num_total_dialogs = 0
@@ -81,9 +73,6 @@ def process_data(args, finetune_dir):
     train_utter_dialogs = []
     valid_utter_dialogs = []
     test_utter_dialogs = []
-    train_entity_dialogs = []
-    valid_entity_dialogs = []
-    test_entity_dialogs = []
     train_action_dialogs = []
     valid_action_dialogs = []
     test_action_dialogs = []
@@ -96,22 +85,14 @@ def process_data(args, finetune_dir):
         valid_utter_dialogs += [utter_dialogues[idx] for idx in valid_idxs]
         test_utter_dialogs += [utter_dialogues[idx] for idx in test_idxs]
         
-        train_entity_dialogs += [entity_dialogues[idx] for idx in train_idxs]
-        valid_entity_dialogs += [entity_dialogues[idx] for idx in valid_idxs]
-        test_entity_dialogs += [entity_dialogues[idx] for idx in test_idxs]
-        
         train_action_dialogs += [action_dialogues[idx] for idx in train_idxs]
         valid_action_dialogs += [action_dialogues[idx] for idx in valid_idxs]
         test_action_dialogs += [action_dialogues[idx] for idx in test_idxs]
     
     print("Now saving data...")
-    save_file(finetune_dir, args.train_prefix, train_utter_dialogs, train_entity_dialogs, train_action_dialogs)
-    save_file(finetune_dir, args.valid_prefix, valid_utter_dialogs, valid_entity_dialogs, valid_action_dialogs)
-    save_file(finetune_dir, args.test_prefix, test_utter_dialogs, test_entity_dialogs, test_action_dialogs)
-    
-    print("Saving entity class dictionary...")
-    with open(f"{finetune_dir}/entity_{args.class_dict_name}.json", 'w') as f:
-        json.dump(entity_class_dict, f)
+    save_file(finetune_dir, args.train_prefix, train_utter_dialogs, train_action_dialogs)
+    save_file(finetune_dir, args.valid_prefix, valid_utter_dialogs, valid_action_dialogs)
+    save_file(finetune_dir, args.test_prefix, test_utter_dialogs, test_action_dialogs)
         
     print("Saving action class dictionary...")
     with open(f"{finetune_dir}/action_{args.class_dict_name}.json", 'w') as f:
@@ -122,16 +103,6 @@ def process_data(args, finetune_dir):
     num_test_utters = count_utters(test_utter_dialogs)
     
     print("<Data Anaysis>")
-    
-    print("Task: Entity Recognition")
-    print(f"# of train dialogues: {len(train_utter_dialogs)}")
-    print(f"# of train utterances: {num_train_utters}")
-    print(f"# of valid dialogues: {len(valid_utter_dialogs)}")
-    print(f"# of valid utterances: {num_valid_utters}")
-    print(f"# of test dialogues: {len(test_utter_dialogs)}")
-    print(f"# of test utterances: {num_test_utters}")
-    print(f"# of classes: {len(entity_class_dict)}")
-    
     print("Task: Action Prediction")
     print(f"# of train dialogues: {len(train_utter_dialogs)}")
     print(f"# of train utterances: {num_train_utters}")
@@ -142,25 +113,6 @@ def process_data(args, finetune_dir):
     print(f"# of classes: {len(action_class_dict)}")
     
     print("Done.")
-
-
-def find_entities(span_info, entity_class_dict, speaker):
-    entity_list = []
-    for span in span_info:
-        domain = span[0].split('-')[0]
-        slot_type = span[1]
-        entity_value = span[2]
-        start = span[3]
-        end = span[4]
-        
-        entity_type = f"{domain}-{slot_type}"
-        if f"B-{entity_type}" not in entity_class_dict and speaker == 'usr':
-            entity_class_dict[f"B-{entity_type}"] = len(entity_class_dict)
-            entity_class_dict[f"I-{entity_type}"] = len(entity_class_dict)
-            
-        entity_list.append((entity_type, entity_value, start, end))
-        
-    return entity_list, entity_class_dict
 
 
 def find_actions(dialog_act, action_class_dict, speaker):
@@ -189,12 +141,9 @@ def split_data(idxs, train_frac, valid_frac):
     return train_idxs, valid_idxs, test_idxs
 
 
-def save_file(finetune_dir, prefix, utter_dialogues, entity_dialogues, action_dialogues):
+def save_file(finetune_dir, prefix, utter_dialogues, action_dialogues):
     with open(f"{finetune_dir}/{prefix}_utters.pickle", 'wb') as f:
         pickle.dump(utter_dialogues, f)
-
-    with open(f"{finetune_dir}/{prefix}_entities.pickle", 'wb') as f:
-        pickle.dump(entity_dialogues, f)
         
     with open(f"{finetune_dir}/{prefix}_actions.pickle", 'wb') as f:
         pickle.dump(action_dialogues, f)
