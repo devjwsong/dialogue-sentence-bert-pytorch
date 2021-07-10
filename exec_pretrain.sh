@@ -12,8 +12,10 @@ python src/pretrain.py \
     --num_workers=0 \
     --max_encoder_len=512 \
     --learning_rate=2e-5 \
-    --warmup_prop=0.0 \
+    --warmup_ratio=0.0 \
     --max_grad_norm=1.0 \
+    --masking_ratio=0.15 \
+    --mlm_factor=1.0 \
     --seed=0 \
     --model_name=MODEL_NAME \
     --pooling=POOLING \
@@ -21,8 +23,8 @@ python src/pretrain.py \
     --num_nodes=1 \
     --group_size=1000 \
     --num_train_same_samples=1000000 \
-    --num_train_neutral_samples=1000000 \
+    --num_train_neut_samples=1000000 \
     --num_train_diff_samples=1000000 \
     --num_valid_same_samples=1000000 \
-    --num_valid_neutral_samples=1000000 \
+    --num_valid_neut_samples=1000000 \
     --num_valid_diff_samples=1000000

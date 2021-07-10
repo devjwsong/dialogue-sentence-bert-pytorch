@@ -8,6 +8,7 @@ import pickle
 import copy
 import natsort
 import random
+import numpy as np
 
 
 def load_data(data_list, pretrain_dir, data_prefix):
@@ -47,6 +48,18 @@ def flat_seq(utters, args):
     
     return seq
 
+def mask_seq(seq, args):
+    num_masks = max(1, int((len(seq)-2) * args.masking_ratio))
+    lm_label = [-1] * len(seq)
+    mask_idxs = random.sample(list(range(1, len(seq)-1)), num_masks)
+    for idx in mask_idxs:
+        lm_label[idx] = seq[idx]
+        seq[idx] = args.mask_id
+    
+    assert len(seq) == len(lm_label)
+    
+    return seq, lm_label
+
 
 def make_action2seqs(args, utters, actions, tokenizer):
     action2seqs = {}
@@ -73,16 +86,19 @@ def make_action2seqs(args, utters, actions, tokenizer):
     return action2seqs
 
 
-def save_pickles(cached_dir, data_prefix, input_prefix, label_prefix, cur_group_idx, input_ids_0, input_ids_1, labels):
+def save_pickles(cached_dir, data_prefix, input_prefix, label_prefix, cur_group_idx, input_ids_0, input_ids_1, class_labels, lm_labels):
     assert len(input_ids_0) == len(input_ids_1)
-    assert len(input_ids_0) == len(labels)
+    assert len(input_ids_0) == len(class_labels)
+    assert len(input_ids_0) == len(lm_labels)
 
     with open(f"{cached_dir}/{data_prefix}_{input_prefix}_0_group{cur_group_idx}", 'wb') as f:
         pickle.dump(input_ids_0, f)
     with open(f"{cached_dir}/{data_prefix}_{input_prefix}_1_group{cur_group_idx}", 'wb') as f:
         pickle.dump(input_ids_1, f)
-    with open(f"{cached_dir}/{data_prefix}_{label_prefix}_group{cur_group_idx}", 'wb') as f:
-        pickle.dump(labels, f)
+    with open(f"{cached_dir}/{data_prefix}_class_{label_prefix}_group{cur_group_idx}", 'wb') as f:
+        pickle.dump(class_labels, f)
+    with open(f"{cached_dir}/{data_prefix}_lm_{label_prefix}_group{cur_group_idx}", 'wb') as f:
+        pickle.dump(lm_labels, f)
 
         
 def is_finished(a0, a1, i, j, num_actions, num_seqs_0, num_seqs_1):
@@ -122,7 +138,7 @@ class PretrainDataset(Dataset):
                 
             print("Sampling pairs...")
             random.seed(args.seed)
-            input_ids_0, input_ids_1, labels = [], [], []
+            input_ids_0, input_ids_1, class_labels, lm_labels = [], [], [], []
             cur_group_idx = 0
             for a0, (action0, seqs0) in enumerate(action2seqs.items()):
                 for a1, (action1, seqs1) in enumerate(action2seqs.items()):
@@ -135,18 +151,26 @@ class PretrainDataset(Dataset):
                             for s1, seq1 in enumerate(sampled_seqs1):
                                 if s0 < s1:
                                     max_len = max(max_len, max(len(seq0), len(seq1)))
-                                    input_ids_0.append(seq0)
-                                    input_ids_1.append(seq1)
-                                    labels.append(class_dict['same'])
+                                    mask_seq_idx = random.sample([0,1], 1)
+                                    if mask_seq_idx == 0:
+                                        masked_seq_0, lm_label = mask_seq(copy.deepcopy(seq0), args)
+                                        input_ids_0.append(masked_seq_0)
+                                        input_ids_1.append(seq1)
+                                    else:
+                                        masked_seq_1, lm_label = mask_seq(copy.deepcopy(seq1), args)
+                                        input_ids_0.append(seq0)
+                                        input_ids_1.append(masked_seq_1)
+                                    class_labels.append(class_dict['same'])
+                                    lm_labels.append(lm_label)
                                     num_seqs[class_dict['same']] += 1
                                     
                                     if len(input_ids_0) == args.group_size \
                                             or is_finished(a0, a1, s0, s1, len(action2seqs), len(sampled_seqs0), len(sampled_seqs1)):
                                         save_pickles(
                                             self.cached_dir, self.data_prefix, self.input_prefix, self.label_prefix, 
-                                            cur_group_idx, input_ids_0, input_ids_1, labels
+                                            cur_group_idx, input_ids_0, input_ids_1, class_labels, lm_labels
                                         )
-                                        input_ids_0, input_ids_1, labels = [], [], []
+                                        input_ids_0, input_ids_1, class_labels, lm_labels = [], [], [], []
                                         cur_group_idx += 1
                     elif a0 < a1:
                         if ((action0 - action1) == action0):
@@ -163,18 +187,26 @@ class PretrainDataset(Dataset):
                         for s0, seq0 in enumerate(tqdm(sampled_seqs0)):
                             for s1, seq1 in enumerate(sampled_seqs1):
                                 max_len = max(max_len, max(len(seq0), len(seq1)))
-                                input_ids_0.append(seq0)
-                                input_ids_1.append(seq1)
-                                labels.append(class_dict[class_name])
+                                mask_seq_idx = random.sample([0,1], 1)
+                                if mask_seq_idx == 0:
+                                    masked_seq_0, lm_label = mask_seq(copy.deepcopy(seq0), args)
+                                    input_ids_0.append(masked_seq_0)
+                                    input_ids_1.append(seq1)
+                                else:
+                                    masked_seq_1, lm_label = mask_seq(copy.deepcopy(seq1), args)
+                                    input_ids_0.append(seq0)
+                                    input_ids_1.append(masked_seq_1)
+                                class_labels.append(class_dict['same'])
+                                lm_labels.append(lm_label)
                                 num_seqs[class_dict[class_name]] += 1
 
                                 if len(input_ids_0) == args.group_size \
                                         or is_finished(a0, a1, s0, s1, len(action2seqs), len(sampled_seqs0), len(sampled_seqs1)):
                                     save_pickles(
                                         self.cached_dir, self.data_prefix, self.input_prefix, self.label_prefix, 
-                                        cur_group_idx, input_ids_0, input_ids_1, labels
+                                        cur_group_idx, input_ids_0, input_ids_1, class_labels, lm_labels
                                     )
-                                    input_ids_0, input_ids_1, labels = [], [], []
+                                    input_ids_0, input_ids_1, class_labels, lm_labels = [], [], [], []
                                     cur_group_idx += 1
             
             print(f"<Data spec for {data_prefix} dataset>")
@@ -186,11 +218,13 @@ class PretrainDataset(Dataset):
         # Load file list
         input_list_0 = [file_name for file_name in os.listdir(f"{self.cached_dir}") if file_name.startswith(f"{self.data_prefix}_{self.input_prefix}_0")]
         input_list_1 = [file_name for file_name in os.listdir(f"{self.cached_dir}") if file_name.startswith(f"{self.data_prefix}_{self.input_prefix}_1")]
-        label_list = [file_name for file_name in os.listdir(f"{self.cached_dir}") if file_name.startswith(f"{self.data_prefix}_{self.label_prefix}")]
+        class_label_list = [file_name for file_name in os.listdir(f"{self.cached_dir}") if file_name.startswith(f"{self.data_prefix}_class_{self.label_prefix}")]
+        lm_label_list = [file_name for file_name in os.listdir(f"{self.cached_dir}") if file_name.startswith(f"{self.data_prefix}_lm_{self.label_prefix}")]
         
         self.input_list_0 = natsort.natsorted(input_list_0)
         self.input_list_1 = natsort.natsorted(input_list_1)
-        self.label_list = natsort.natsorted(label_list)
+        self.class_label_list = natsort.natsorted(class_label_list)
+        self.lm_label_list = natsort.natsorted(lm_label_list)
         
         self.total_num = (len(self.input_list_0)-1) * self.group_size
         with open(f"{self.cached_dir}/{self.input_list_0[-1]}", 'rb') as f:
@@ -207,10 +241,12 @@ class PretrainDataset(Dataset):
             input_ids_0 = pickle.load(f)
         with open(f"{self.cached_dir}/{self.input_list_1[group_idx]}", 'rb') as f:
             input_ids_1 = pickle.load(f)
-        with open(f"{self.cached_dir}/{self.label_list[group_idx]}", 'rb') as f:
-            labels = pickle.load(f)
+        with open(f"{self.cached_dir}/{self.class_label_list[group_idx]}", 'rb') as f:
+            class_labels = pickle.load(f)
+        with open(f"{self.cached_dir}/{self.lm_label_list[group_idx]}", 'rb') as f:
+            lm_labels = pickle.load(f)
             
-        return input_ids_0[seq_idx], input_ids_1[seq_idx], labels[seq_idx]
+        return input_ids_0[seq_idx], input_ids_1[seq_idx], class_labels[seq_idx], lm_labels[seq_idx]
 
     
 class PretrainPadCollate():
@@ -218,14 +254,17 @@ class PretrainPadCollate():
         self.input_pad_id = input_pad_id
 
     def pad_collate(self, batch):
-        input_ids_0, input_ids_1, labels = [], [], []
-        for idx, triplet in enumerate(batch):
-            input_ids_0.append(torch.LongTensor(triplet[0]))
-            input_ids_1.append(torch.LongTensor(triplet[1]))
-            labels.append(triplet[2])
+        input_ids_0, input_ids_1, class_labels, lm_labels = [], [], [], []
+        for idx, tup in enumerate(batch):
+            input_ids_0.append(torch.LongTensor(tup[0]))
+            input_ids_1.append(torch.LongTensor(tup[1]))
+            class_labels.append(tup[2])
+            lm_labels.append(torch.LongTensor(tup[3]))
 
         padded_input_ids_0 = torch.nn.utils.rnn.pad_sequence(input_ids_0, batch_first=True, padding_value=self.input_pad_id)
         padded_input_ids_1 = torch.nn.utils.rnn.pad_sequence(input_ids_1, batch_first=True, padding_value=self.input_pad_id)
-        labels = torch.LongTensor(labels)
+        class_labels = torch.LongTensor(class_labels)
+        padded_lm_labels = torch.nn.utils.rnn.pad_sequence(lm_labels, batch_first=True, padding_value=-1)
         
-        return padded_input_ids_0.contiguous(), padded_input_ids_1.contiguous(), labels.contiguous()
+        return padded_input_ids_0.contiguous(), padded_input_ids_1.contiguous(), class_labels.contiguous(), padded_lm_labels.contiguous()
+    

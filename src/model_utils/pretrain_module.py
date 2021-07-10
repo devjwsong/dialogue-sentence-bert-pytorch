@@ -18,9 +18,11 @@ class PretrainModule(pl.LightningModule):
         self.args, config, self.tokenizer, self.encoder = setting(args, load_model=True)
         
         seed_everything(self.args.seed, workers=True)
-        self.output_layer = nn.Linear(3 * self.args.hidden_size, self.args.num_classes)
+        self.class_layer = nn.Linear(3 * self.args.hidden_size, self.args.num_classes)
+        self.lm_layer = nn.Linear(self.args.hidden_size, self.args.vocab_size)
         
-        self.loss_func = nn.CrossEntropyLoss()
+        self.class_loss_func = nn.CrossEntropyLoss()
+        self.lm_loss_func = nn.CrossEntropyLoss(ignore_index=-1)
         
         self.save_hyperparameters(args)
         
@@ -31,29 +33,33 @@ class PretrainModule(pl.LightningModule):
         hidden_states_1 = self.encoder(input_ids=input_ids_1, attention_mask=padding_masks_1)[0]  # (B, L, d_h)
         
         if self.args.pooling == 'cls':
-            hidden_states_0 = hidden_states_0[:, 0, :]  # (B, d_h)
-            hidden_states_1 = hidden_states_1[:, 0, :]  # (B, d_h)
+            pooled_hidden_states_0 = hidden_states_0[:, 0, :]  # (B, d_h)
+            pooled_hidden_states_1 = hidden_states_1[:, 0, :]  # (B, d_h)
         elif self.args.pooling == 'mean':
-            hidden_states_0 = torch.mean(hidden_states_0, dim=1)  # (B, d_h)
-            hidden_states_1 = torch.mean(hidden_states_1, dim=1)  # (B, d_h)
+            pooled_hidden_states_0 = torch.mean(hidden_states_0, dim=1)  # (B, d_h)
+            pooled_hidden_states_1 = torch.mean(hidden_states_1, dim=1)  # (B, d_h)
         elif self.args.pooling == 'max':
-            hidden_states_0 = torch.max(hidden_states_0, dim=1).values  # (B, d_h)
-            hidden_states_1 = torch.max(hidden_states_1, dim=1).values  # (B, d_h)
+            pooled_hidden_states_0 = torch.max(hidden_states_0, dim=1).values  # (B, d_h)
+            pooled_hidden_states_1 = torch.max(hidden_states_1, dim=1).values  # (B, d_h)
             
-        dists = torch.abs(hidden_states_0 - hidden_states_1)  # (B, d_h)
-        total_hidden_states = torch.cat((hidden_states_0, hidden_states_1, dists), dim=-1)  # (B, 3d_h)
+        dists = torch.abs(pooled_hidden_states_0 - pooled_hidden_states_1)  # (B, d_h)
+        total_hidden_states = torch.cat((pooled_hidden_states_0, pooled_hidden_states_1, dists), dim=-1)  # (B, 3d_h)
             
-        return self.output_layer(total_hidden_states)  # (B, C)
+        return self.class_layer(total_hidden_states), self.lm_layer(hidden_states_1)  # (B, C), (B, L, V)
     
     def training_step(self, batch, batch_idx):
-        input_ids_0, input_ids_1, labels = batch  # input_ids_0: (B, L), input_ids_1: (B, L) labels: (B)
+        # input_ids_0: (B, L), input_ids_1: (B, L) class_labels: (B), lm_labels: (B, L)
+        input_ids_0, input_ids_1, class_labels, lm_labels = batch  
         padding_masks_0 = (input_ids_0 != self.args.pad_id).float()  # (B, L)
         padding_masks_1 = (input_ids_1 != self.args.pad_id).float()  # (B, L)
         
-        outputs = self.forward(input_ids_0, input_ids_1, padding_masks_0, padding_masks_1)  # (B, C)
+        class_outputs, lm_outputs = self.forward(input_ids_0, input_ids_1, padding_masks_0, padding_masks_1)  # (B, C), (B, L, V)
         
-        loss = self.loss_func(outputs, labels)
-        preds, trues = self.get_results(outputs, labels)
+        class_loss = self.class_loss_func(class_outputs, class_labels)
+        preds, trues = self.get_results(class_outputs, class_labels)
+        
+        lm_loss = self.lm_loss_func(lm_outputs.view(-1, self.args.vocab_size), lm_labels.view(-1))
+        loss = class_loss + self.args.mlm_factor * lm_loss
             
         return {'loss': loss, 'preds': preds, 'trues': trues}
     
@@ -74,15 +80,19 @@ class PretrainModule(pl.LightningModule):
             self.log(f"train_{metric}", value, on_step=False, on_epoch=True, prog_bar=True, logger=True)
             
     def validation_step(self, batch, batch_idx):
-        input_ids_0, input_ids_1, labels = batch  # input_ids_0: (B, L), input_ids_1: (B, L) labels: (B)
+        # input_ids_0: (B, L), input_ids_1: (B, L) class_labels: (B), lm_labels: (B, L)
+        input_ids_0, input_ids_1, class_labels, lm_labels = batch  
         padding_masks_0 = (input_ids_0 != self.args.pad_id).float()  # (B, L)
         padding_masks_1 = (input_ids_1 != self.args.pad_id).float()  # (B, L)
         
-        outputs = self.forward(input_ids_0, input_ids_1, padding_masks_0, padding_masks_1)  # (B, C)
+        class_outputs, lm_outputs = self.forward(input_ids_0, input_ids_1, padding_masks_0, padding_masks_1)  # (B, C), (B, L, V)
         
-        loss = self.loss_func(outputs, labels)
-        preds, trues = self.get_results(outputs, labels)
+        class_loss = self.class_loss_func(class_outputs, class_labels)
+        preds, trues = self.get_results(class_outputs, class_labels)
         
+        lm_loss = self.lm_loss_func(lm_outputs.view(-1, self.args.vocab_size), lm_labels.view(-1))
+        loss = class_loss + self.args.mlm_factor * lm_loss
+            
         return {'valid_loss': loss, 'preds': preds, 'trues': trues}
     
     def validation_epoch_end(self, validation_step_outputs):
