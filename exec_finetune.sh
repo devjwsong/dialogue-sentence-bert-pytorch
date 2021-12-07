@@ -1,6 +1,6 @@
 python src/finetune.py \
-    --task=TASK \
-    --dataset=DATASET \
+    --task="intent" \
+    --dataset="oos" \
     --cache_dir="cached" \
     --data_dir="data" \
     --finetune_dir="finetune" \
@@ -9,16 +9,15 @@ python src/finetune.py \
     --valid_prefix="valid" \
     --test_prefix="test" \
     --max_turns=1 \
-    --num_epochs=1 \
+    --num_epochs=20 \
     --batch_size=16 \
-    --num_workers=0\
+    --num_workers=4 \
     --max_encoder_len=512 \
-    --learning_rate=2e-5 \
-    --warmup_prop=0.0
+    --learning_rate=5e-5 \
+    --warmup_prop=0.0 \
     --max_grad_norm=1.0 \
     --sigmoid_threshold=0.5 \
     --seed=0 \
-    --model_name=MODEL_NAME \
-    --pooling=POOLING \
-    --gpu="0" \
-    --num_nodes=1
+    --model_name="bert" \
+    --pooling="cls" \
+    --gpu="1"

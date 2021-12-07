@@ -230,23 +230,29 @@ class PretrainDataset(Dataset):
         with open(f"{self.cached_dir}/{self.input_list_0[-1]}", 'rb') as f:
             seqs = pickle.load(f)
             self.total_num += len(seqs)
+            
+        self.cur_group_idx = -1;
+        self.cur_input_ids_0, self.cur_input_ids_1, self.class_labels, self.lm_labels = [], [], [], []
         
     def __len__(self):
         return self.total_num
     
     def __getitem__(self, idx):
         group_idx = idx // self.group_size
+        
+        if self.cur_group_idx != group_idx:
+            with open(f"{self.cached_dir}/{self.input_list_0[group_idx]}", 'rb') as f:
+                self.input_ids_0 = pickle.load(f)
+            with open(f"{self.cached_dir}/{self.input_list_1[group_idx]}", 'rb') as f:
+                self.input_ids_1 = pickle.load(f)
+            with open(f"{self.cached_dir}/{self.class_label_list[group_idx]}", 'rb') as f:
+                self.class_labels = pickle.load(f)
+            with open(f"{self.cached_dir}/{self.lm_label_list[group_idx]}", 'rb') as f:
+                self.lm_labels = pickle.load(f)
+        
         seq_idx = idx % self.group_size
-        with open(f"{self.cached_dir}/{self.input_list_0[group_idx]}", 'rb') as f:
-            input_ids_0 = pickle.load(f)
-        with open(f"{self.cached_dir}/{self.input_list_1[group_idx]}", 'rb') as f:
-            input_ids_1 = pickle.load(f)
-        with open(f"{self.cached_dir}/{self.class_label_list[group_idx]}", 'rb') as f:
-            class_labels = pickle.load(f)
-        with open(f"{self.cached_dir}/{self.lm_label_list[group_idx]}", 'rb') as f:
-            lm_labels = pickle.load(f)
-            
-        return input_ids_0[seq_idx], input_ids_1[seq_idx], class_labels[seq_idx], lm_labels[seq_idx]
+
+        return self.input_ids_0[seq_idx], self.input_ids_1[seq_idx], self.class_labels[seq_idx], self.lm_labels[seq_idx]
 
     
 class PretrainPadCollate():

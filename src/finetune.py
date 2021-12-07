@@ -2,7 +2,8 @@ from torch.utils.data import DataLoader
 from model_utils.finetune_module import *
 from data_utils.finetune_datasets import *
 from pytorch_lightning import Trainer, seed_everything
-from pytorch_lightning.callbacks import ModelCheckpoint
+from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
+from utils import convert_gpu_str_to_list
 
 import os
 import argparse
@@ -45,7 +46,6 @@ def run(args):
     ppd = PadCollate(input_pad_id=input_pad_id)
     
     # Reset random seed for data shuffle
-    seed_everything(args.seed, workers=True)
     train_loader = DataLoader(train_set, collate_fn=ppd.pad_collate, batch_size=args.batch_size, shuffle=True, num_workers=args.num_workers, pin_memory=True)
     valid_loader = DataLoader(valid_set, collate_fn=ppd.pad_collate, batch_size=args.batch_size, num_workers=args.num_workers, pin_memory=True)
     test_loader = DataLoader(test_set, collate_fn=ppd.pad_collate, batch_size=args.batch_size, num_workers=args.num_workers, pin_memory=True)
@@ -69,29 +69,36 @@ def run(args):
         verbose=True,
         monitor=monitor,
         mode='max',
-        every_n_val_epochs=1,
+        every_n_epochs=1,
         save_weights_only=True
+    )
+    stopping_callback = EarlyStopping(
+        monitor=monitor,
+        min_delta=1e-4,
+        patience=3,
+        verbose=True,
+        mode='max'
     )
     
     # Trainer setting
+    args.gpu = convert_gpu_str_to_list(args.gpu)
     trainer = Trainer(
-        check_val_every_n_epoch=1,
+        accelerator="gpu",
         gpus=args.gpu,
-        auto_select_gpus=True,
-        num_nodes=args.num_nodes,
+        check_val_every_n_epoch=1,
         max_epochs=args.num_epochs,
         gradient_clip_val=args.max_grad_norm,
-        num_sanity_val_steps=0,
         deterministic=True,
-        callbacks=[checkpoint_callback]
+        callbacks=[checkpoint_callback, stopping_callback]
     )
     
     print("Train starts.")
-    trainer.fit(model=module, train_dataloader=train_loader, val_dataloaders=valid_loader)
+    seed_everything(args.seed, workers=True)
+    trainer.fit(model=module, train_dataloaders=train_loader, val_dataloaders=valid_loader)
     print("Training done.")
     
     print("Test starts.")
-    trainer.test(test_dataloaders=test_loader, ckpt_path='best')
+    trainer.test(dataloaders=test_loader, ckpt_path='best')
     
     print("GOOD BYE.")
     
@@ -122,7 +129,6 @@ if __name__=='__main__':
     parser.add_argument('--model_name', required=True, type=str, help="The encoder model to test.")
     parser.add_argument('--pooling', required=True, type=str, help="Pooling method: CLS/Mean/Max")
     parser.add_argument('--gpu', type=str, default="0", help="The index of GPU to use.")
-    parser.add_argument('--num_nodes', type=int, default=1, help="The number of machine.")
     parser.add_argument('--ckpt_dir', required=False, type=str, help="If only training from a specific checkpoint... (also convbert)")
     parser.add_argument('--ckpt_name', required=False, type=str, help="If only training from a specific checkpoint...")
     

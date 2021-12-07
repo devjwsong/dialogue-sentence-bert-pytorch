@@ -14,9 +14,9 @@ def load_data(dataset_dir, data_prefix, utter_name, label_name):
     
     print(f"Loading {data_prefix} pickle files...")
     with open(f"{dataset_dir}/{data_prefix}_{utter_name}.pickle", 'rb') as f:
-        utters = pickle.load(f)
+        utters = pickle.load(f)[:100]
     with open(f"{dataset_dir}/{data_prefix}_{label_name}.pickle", 'rb') as f:
-        labels = pickle.load(f)
+        labels = pickle.load(f)[:100]
         
     return utters, labels
 
@@ -166,6 +166,7 @@ class PadCollate():
 
     def pad_collate(self, batch):
         input_ids, labels = [], []
+        
         for idx, pair in enumerate(batch):
             input_ids.append(torch.LongTensor(pair[0]))
             labels.append(pair[1])

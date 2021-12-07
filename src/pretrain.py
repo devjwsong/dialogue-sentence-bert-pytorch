@@ -38,7 +38,6 @@ def run(args):
     ppd = PretrainPadCollate(input_pad_id=input_pad_id)
     
     # Reset random seed for data shuffle
-    seed_everything(args.seed, workers=True)
     train_loader = DataLoader(train_set, collate_fn=ppd.pad_collate, batch_size=args.batch_size, shuffle=True, num_workers=args.num_workers, pin_memory=True)
     valid_loader = DataLoader(valid_set, collate_fn=ppd.pad_collate, batch_size=args.batch_size, num_workers=args.num_workers, pin_memory=True)
     
@@ -65,6 +64,7 @@ def run(args):
     )
     
     # Trainer setting
+    seed_everything(args.seed, workers=True)
     trainer = Trainer(
         check_val_every_n_epoch=1,
         gpus=args.gpus,

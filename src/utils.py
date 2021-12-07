@@ -6,6 +6,18 @@ import numpy as np
 import random
 
 
+def convert_gpu_str_to_list(gpus):
+    if not isinstance(gpus, str):
+        return gpus
+        
+    assert len(gpus) > 0, "Cannot convert the string with 0 length."
+    
+    gpu_list = gpus.split(",")
+    gpu_list = [int(idx.strip()) for idx in gpu_list]
+    
+    return gpu_list
+
+
 def pretrain_scores(preds, trues, round_num=4):
     acc = accuracy_score(trues, preds)
     f1 = f1_score(trues, preds, average='micro')
@@ -44,7 +56,10 @@ def intent_scores(preds, trues, intent_class_dict=None, round_num=4):
         # for oos samples recall = tp / (tp + fn) 
         TP = (oos_trues & oos_preds).sum()
         FN = ((oos_trues - oos_preds) > 0).sum()
-        oos_recall = TP / (TP+FN)
+        if TP + FN == 0:
+            oos_recall = 0.0
+        else:
+            oos_recall = TP / (TP+FN)
         
         scores['ins_acc'] = round(ins_acc, round_num)
         scores['oos_acc'] = round(oos_acc, round_num)
