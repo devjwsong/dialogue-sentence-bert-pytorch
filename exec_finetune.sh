@@ -1,6 +1,6 @@
 python src/finetune.py \
-    --task="intent" \
-    --dataset="oos" \
+    --task=TASK \
+    --dataset=DATASET \
     --cache_dir="cached" \
     --data_dir="data" \
     --finetune_dir="finetune" \
@@ -18,6 +18,7 @@ python src/finetune.py \
     --max_grad_norm=1.0 \
     --sigmoid_threshold=0.5 \
     --seed=0 \
-    --model_name="bert" \
-    --pooling="cls" \
-    --gpu="1"
+    --model_name=MODEL_NAME \
+    --ckpt_dir="saved_models" \
+    --pooling=POOLING \
+    --gpu="0"

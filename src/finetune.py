@@ -41,11 +41,9 @@ def run(args):
         valid_set = APDataset(args, args.valid_prefix, module.tokenizer)
         test_set = APDataset(args, args.test_prefix, module.tokenizer)
 
-    # Dataloaders
+    
     input_pad_id = args.pad_id
     ppd = PadCollate(input_pad_id=input_pad_id)
-    
-    # Reset random seed for data shuffle
     train_loader = DataLoader(train_set, collate_fn=ppd.pad_collate, batch_size=args.batch_size, shuffle=True, num_workers=args.num_workers, pin_memory=True)
     valid_loader = DataLoader(valid_set, collate_fn=ppd.pad_collate, batch_size=args.batch_size, num_workers=args.num_workers, pin_memory=True)
     test_loader = DataLoader(test_set, collate_fn=ppd.pad_collate, batch_size=args.batch_size, num_workers=args.num_workers, pin_memory=True)
