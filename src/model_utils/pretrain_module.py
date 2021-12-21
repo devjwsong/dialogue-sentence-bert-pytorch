@@ -1,8 +1,7 @@
-from torch import nn as nn
-from transformers import get_linear_schedule_with_warmup
+from torch import nn
+from transformers import get_polynomial_decay_schedule_with_warmup
+from pytorch_lightning.callbacks.base import Callback
 from .encoders import *
-from utils import *
-from pytorch_lightning import seed_everything
 from argparse import Namespace
 
 import torch
@@ -17,12 +16,7 @@ class PretrainModule(pl.LightningModule):
             
         self.args, config, self.tokenizer, self.encoder = setting(args, load_model=True)
         
-        seed_everything(self.args.seed, workers=True)
-        self.class_layer = nn.Linear(3 * self.args.hidden_size, self.args.num_classes)
-        self.lm_layer = nn.Linear(self.args.hidden_size, self.args.vocab_size)
-        
-        self.class_loss_func = nn.CrossEntropyLoss()
-        self.lm_loss_func = nn.CrossEntropyLoss(ignore_index=-1)
+        self.loss_func = nn.CosineEmbeddingLoss()
         
         self.save_hyperparameters(args)
         
@@ -42,100 +36,70 @@ class PretrainModule(pl.LightningModule):
             pooled_hidden_states_0 = torch.max(hidden_states_0, dim=1).values  # (B, d_h)
             pooled_hidden_states_1 = torch.max(hidden_states_1, dim=1).values  # (B, d_h)
             
-        dists = torch.abs(pooled_hidden_states_0 - pooled_hidden_states_1)  # (B, d_h)
-        total_hidden_states = torch.cat((pooled_hidden_states_0, pooled_hidden_states_1, dists), dim=-1)  # (B, 3d_h)
-            
-        return self.class_layer(total_hidden_states), self.lm_layer(hidden_states_1)  # (B, C), (B, L, V)
+        return pooled_hidden_states_0, pooled_hidden_states_1  # (B, d_h), (B, d_h)
     
     def training_step(self, batch, batch_idx):
-        # input_ids_0: (B, L), input_ids_1: (B, L) class_labels: (B), lm_labels: (B, L)
-        input_ids_0, input_ids_1, class_labels, lm_labels = batch  
+        input_ids_0, input_ids_1, labels = batch  # input_ids_0: (B, L), input_ids_1: (B, L) labels: (B)
         padding_masks_0 = (input_ids_0 != self.args.pad_id).float()  # (B, L)
         padding_masks_1 = (input_ids_1 != self.args.pad_id).float()  # (B, L)
         
-        class_outputs, lm_outputs = self.forward(input_ids_0, input_ids_1, padding_masks_0, padding_masks_1)  # (B, C), (B, L, V)
+        outputs_0, outputs_1 = self.forward(input_ids_0, input_ids_1, padding_masks_0, padding_masks_1)  # (B, d_h), (B, d_h)
         
-        class_loss = self.class_loss_func(class_outputs, class_labels)
-        preds, trues = self.get_results(class_outputs, class_labels)
+        loss = self.loss_func(outputs_0, outputs_1, labels)
         
-        lm_loss = self.lm_loss_func(lm_outputs.view(-1, self.args.vocab_size), lm_labels.view(-1))
-        loss = class_loss + self.args.mlm_factor * lm_loss
-            
-        return {'loss': loss, 'preds': preds, 'trues': trues}
-    
-    def training_epoch_end(self, training_step_outputs):
-        train_losses = []
-        train_preds = []
-        train_trues = []
+        self.log('train_loss', loss, on_step=True, on_epoch=False, prog_bar=True, logger=True)
         
-        for result in training_step_outputs:
-            train_losses.append(result['loss'].item())
-            train_preds += result['preds']
-            train_trues += result['trues']
-            
-        scores = pretrain_scores(train_preds, train_trues, round_num=4)
-        
-        self.log('train_loss', np.mean(train_losses), on_step=False, on_epoch=True, prog_bar=True, logger=True)
-        for metric, value in scores.items():
-            self.log(f"train_{metric}", value, on_step=False, on_epoch=True, prog_bar=True, logger=True)
-            
-    def validation_step(self, batch, batch_idx):
-        # input_ids_0: (B, L), input_ids_1: (B, L) class_labels: (B), lm_labels: (B, L)
-        input_ids_0, input_ids_1, class_labels, lm_labels = batch  
-        padding_masks_0 = (input_ids_0 != self.args.pad_id).float()  # (B, L)
-        padding_masks_1 = (input_ids_1 != self.args.pad_id).float()  # (B, L)
-        
-        class_outputs, lm_outputs = self.forward(input_ids_0, input_ids_1, padding_masks_0, padding_masks_1)  # (B, C), (B, L, V)
-        
-        class_loss = self.class_loss_func(class_outputs, class_labels)
-        preds, trues = self.get_results(class_outputs, class_labels)
-        
-        lm_loss = self.lm_loss_func(lm_outputs.view(-1, self.args.vocab_size), lm_labels.view(-1))
-        loss = class_loss + self.args.mlm_factor * lm_loss
-            
-        return {'valid_loss': loss, 'preds': preds, 'trues': trues}
-    
-    def validation_epoch_end(self, validation_step_outputs):
-        valid_losses = []
-        valid_preds = []
-        valid_trues = []
-        
-        for result in validation_step_outputs:
-            valid_losses.append(result['valid_loss'].item())
-            valid_preds += result['preds']
-            valid_trues += result['trues']
-        
-        scores = pretrain_scores(valid_preds, valid_trues, round_num=4)
-        
-        self.log('valid_loss', np.mean(valid_losses), on_step=False, on_epoch=True, prog_bar=True, logger=True)
-        for metric, value in scores.items():
-            self.log(f"valid_{metric}", value, on_step=False, on_epoch=True, prog_bar=True, logger=True)
-    
-    def get_results(self, outputs, labels):
-        _, preds = torch.max(outputs, dim=-1)  # (B)
-        
-        preds = preds.tolist()
-        trues = labels.tolist()
-        
-        assert len(preds) == len(trues)
-        
-        return preds, trues
+        return loss
     
     def configure_optimizers(self):
         optimizer = torch.optim.AdamW(self.parameters(), lr=self.args.learning_rate)
-        if self.args.warmup_steps < 0.0:
-            return [optimizer]
-        else:
-            scheduler = {
-                'scheduler': get_linear_schedule_with_warmup(
-                                optimizer, 
-                                num_warmup_steps=self.args.warmup_steps, 
-                                num_training_steps=self.args.total_train_steps
-                            ),
-                'name': 'learning_rate',
-                'interval': 'step',
-                'frequency': 1
+        scheduler = {
+            'scheduler': get_polynomial_decay_schedule_with_warmup(
+                optimizer,
+                num_warmup_steps=self.args.num_warmup_steps,
+                num_training_steps=self.args.num_training_steps,
+                lr_end=1e-6,
+                power=2.0,
+            ),
+            'name': 'learning_rate',
+            'interval': 'step',
+            'frequency': 1
+        }
 
-            }
+        return [optimizer], [scheduler]
 
-            return [optimizer], [scheduler]
+    
+class CustomModelCheckpoint(Callback):
+    def __init__(self,
+                 every_n_train_steps,
+                 save_weights_only,
+                 num_steps_per_epoch,
+    ):
+        super().__init__()
+        self.every_n_train_steps = every_n_train_steps
+        self.save_weights_only = save_weights_only
+        self.num_steps_per_epoch = num_steps_per_epoch
+        
+    def on_batch_end(self, trainer, pl_module):
+        step = pl_module.global_step
+        if self.is_save_step(step):
+            self.save_step_checkpoint(step, trainer, pl_module)
+    
+    def is_save_step(self, step):
+        is_save_step = \
+            (step+1) % self.every_n_train_steps == 0 or \
+            (step+1) % self.num_steps_per_epoch == 0
+        
+        return is_save_step
+    
+    def save_step_checkpoint(self, step, trainer, pl_module):
+        epoch = pl_module.current_epoch
+        pooling = pl_module.args.pooling
+        step = pl_module.global_step
+        
+        metrics = trainer.callback_metrics
+        loss = round(metrics['train_loss'].item(), 6)
+
+        ckpt_file = f"dialogue_sentbert_{pooling}_epoch={epoch}_step={step}_train_loss={loss}.ckpt"
+        log_dir = trainer.log_dir
+        trainer.save_checkpoint(f"{log_dir}/checkpoints/{ckpt_file}", weights_only=self.save_weights_only)    

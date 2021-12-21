@@ -1,5 +1,4 @@
-from sklearn.metrics import accuracy_score
-from sklearn.metrics import f1_score
+from sklearn.metrics import accuracy_score, f1_score
 
 import torch
 import numpy as np
@@ -16,13 +15,6 @@ def convert_gpu_str_to_list(gpus):
     gpu_list = [int(idx.strip()) for idx in gpu_list]
     
     return gpu_list
-
-
-def pretrain_scores(preds, trues, round_num=4):
-    acc = accuracy_score(trues, preds)
-    f1 = f1_score(trues, preds, average='micro')
-    
-    return {'acc': round(acc, round_num), 'f1': round(f1, round_num)}
 
 
 def intent_scores(preds, trues, intent_class_dict=None, round_num=4):

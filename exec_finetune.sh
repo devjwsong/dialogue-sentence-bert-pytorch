@@ -18,7 +18,7 @@ python src/finetune.py \
     --max_grad_norm=1.0 \
     --sigmoid_threshold=0.5 \
     --seed=0 \
-    --model_name=MODEL_NAME \
+    --model_name="bert" \
     --ckpt_dir="saved_models" \
     --pooling=POOLING \
     --gpu="0"
