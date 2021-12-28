@@ -2,7 +2,7 @@ from tqdm import tqdm
 from glob import glob
 
 import argparse
-import pickle
+import json
 import random
 import numpy as np
 import os
@@ -12,20 +12,20 @@ def save_files(args, sample_list_0, sample_list_1, labels, cur_group):
     assert len(sample_list_0) == len(sample_list_1)
     assert len(sample_list_0) == len(labels)
     
-    with open(f"{args.save_dir}/sample_list_0_group_{cur_group}.pkl", 'wb') as f:
-        pickle.dump(sample_list_0, f)
-    with open(f"{args.save_dir}/sample_list_1_group_{cur_group}.pkl", 'wb') as f:
-        pickle.dump(sample_list_1, f)
-    with open(f"{args.save_dir}/labels_group_{cur_group}.pkl", 'wb') as f:
-        pickle.dump(labels, f)
+    with open(f"{args.save_dir}/sample_list_0_group_{cur_group}.pkl", 'w') as f:
+        json.dump(sample_list_0, f)
+    with open(f"{args.save_dir}/sample_list_1_group_{cur_group}.pkl", 'w') as f:
+        json.dump(sample_list_1, f)
+    with open(f"{args.save_dir}/labels_group_{cur_group}.pkl", 'w') as f:
+        json.dump(labels, f)
 
         
 def sample_negative(valid_idxs, keys):
     key_idxs = list(range(len(keys)))
     key_idx = random.sample(key_idxs, 1)[0]
     sampled_file = keys[key_idx]
-    with open(sampled_file, 'rb') as f:
-        sampled = pickle.load(f)
+    with open(sampled_file, 'rb) as f:
+        sampled = json.load(f)
         
     negative = sampled[valid_idxs[sampled_file]]
     valid_idxs[sampled_file] += 1
@@ -74,8 +74,8 @@ if __name__=="__main__":
     lens, num_same, num_diff = [], 0, 0
     
     for file in tqdm(file_list):
-        with open(file, 'rb') as f:
-            seqs = pickle.load(f)
+        with open(file, 'r') as f:
+            seqs = json.load(f)
         
         if file not in valid_idxs:
             continue

@@ -2,7 +2,7 @@ from torch.utils.data import Dataset
 from glob import glob
 
 import torch
-import pickle
+import json
 import natsort
 
 
@@ -19,12 +19,12 @@ class PretrainDataset(Dataset):
         assert len(self.sample_files_0) == len(self.sample_files_1)
         assert len(self.sample_files_0) == len(self.label_files)
         
-        with open(self.sample_files_0[0], 'rb') as f:
-            first_group = pickle.load(f)
+        with open(self.sample_files_0[0], 'r') as f:
+            first_group = json.load(f)
         self.group_size = len(first_group)
         self.num_samples = (len(self.sample_files_0) - 1) * self.group_size
-        with open(self.sample_files_0[-1], 'rb') as f:
-            last_group = pickle.load(f)
+        with open(self.sample_files_0[-1], 'r') as f:
+            last_group = json.load(f)
         self.num_samples += len(last_group)
         
         self.cur_group_idx = -1
@@ -33,12 +33,12 @@ class PretrainDataset(Dataset):
     def __getitem__(self, idx):
         group_idx = idx // self.group_size
         if group_idx != self.cur_group_idx:
-            with open(self.sample_files_0[group_idx], 'rb') as f:
-                self.cur_sample_list_0 = pickle.load(f)
-            with open(self.sample_files_1[group_idx], 'rb') as f:
-                self.cur_sample_list_1 = pickle.load(f)
-            with open(self.label_files[group_idx], 'rb') as f:
-                self.cur_labels = pickle.load(f)
+            with open(self.sample_files_0[group_idx], 'r') as f:
+                self.cur_sample_list_0 = json.load(f)
+            with open(self.sample_files_1[group_idx], 'r') as f:
+                self.cur_sample_list_1 = json.load(f)
+            with open(self.label_files[group_idx], 'r') as f:
+                self.cur_labels = json.load(f)
             self.cur_group_idx = group_idx
             
         sample_idx = idx % self.group_size

@@ -3,8 +3,8 @@ python src/pretrain.py \
     --data_dir="data" \
     --pretrain_dir="pretrain" \
     --num_epochs=1 \
-    --batch_size=32 \
-    --num_workers=16 \
+    --batch_size=16 \
+    --num_workers=32 \
     --learning_rate=2e-5 \
     --warmup_ratio=0.1 \
     --save_interval=50000 \
