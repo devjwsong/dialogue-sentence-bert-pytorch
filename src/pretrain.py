@@ -36,7 +36,6 @@ def run(args):
         amp_backend="apex",
         amp_level=args.amp_level,
         replace_sampler_ddp=False,
-        profiler="advanced",
     )
     
     print("Train starts.")

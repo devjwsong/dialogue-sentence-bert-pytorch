@@ -108,7 +108,7 @@ class CustomModelCheckpoint(Callback):
             
     def on_epoch_end(self, trainer, pl_module):
         step = pl_module.global_step
-        save_step_checkpoint(self, step, trainer, pl_module)
+        self.save_step_checkpoint(step, trainer, pl_module)
     
     def save_step_checkpoint(self, step, trainer, pl_module):
         epoch = pl_module.current_epoch

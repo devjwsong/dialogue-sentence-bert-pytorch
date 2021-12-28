@@ -20,6 +20,7 @@ def run(args):
     second_sample_files = natsort.natsorted(second_sample_files)
     label_files = natsort.natsorted(label_files)
     
+    cur_group = 0
     for i in tqdm(range(0, len(first_sample_files), args.num_files)):
         target_first_sample_files = first_sample_files[i:i+args.num_files]
         target_second_sample_files = second_sample_files[i:i+args.num_files]
@@ -52,12 +53,13 @@ def run(args):
         
         for j in range(len(target_first_sample_files)):
             first_samples, second_samples, labels = zip(*samples[j*args.group_size:(j+1)*args.group_size])
-            with open(f"{args.save_dir}/first_samples_group{i*args.num_files + j}.json", 'w') as f:
+            with open(f"{args.save_dir}/first_samples_group{cur_group}.json", 'w') as f:
                 ujson.dump(first_samples, f)
-            with open(f"{args.save_dir}/second_samples_group{i*args.num_files + j}.json", 'w') as f:
+            with open(f"{args.save_dir}/second_samples_group{cur_group}.json", 'w') as f:
                 ujson.dump(second_samples, f)
-            with open(f"{args.save_dir}/label_group{i*args.num_files + j}.json", 'w') as f:
+            with open(f"{args.save_dir}/label_group{cur_group}.json", 'w') as f:
                 ujson.dump(labels, f)
+            cur_group += 1
 
 
 if __name__=="__main__":
