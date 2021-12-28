@@ -1,4 +1,4 @@
-from model_utils.pretrain_module import *
+from pretrain_module import pt_module
 
 import torch
 import argparse

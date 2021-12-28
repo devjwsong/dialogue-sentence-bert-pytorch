@@ -1,8 +1,10 @@
 from torch import nn
 from transformers import get_polynomial_decay_schedule_with_warmup
 from pytorch_lightning.callbacks.base import Callback
-from .encoders import *
+from encoders import *
 from argparse import Namespace
+from pretrain_datasets import *
+from torch.utils.data import DataLoader
 
 import torch
 import pytorch_lightning as pl
@@ -15,10 +17,24 @@ class PretrainModule(pl.LightningModule):
             args = Namespace(**args)
             
         self.args, config, self.tokenizer, self.encoder = setting(args, load_model=True)
-        
         self.loss_func = nn.CosineEmbeddingLoss()
         
         self.save_hyperparameters(args)
+        
+    def train_dataloader(self):
+        train_set = PretrainDataset(self.args)
+        ppd = PretrainPadCollate(input_pad_id=self.args.pad_id)
+        sampler = torch.utils.data.distributed.DistributedSampler(train_set, shuffle=False)
+        train_loader = DataLoader(
+            train_set, 
+            collate_fn=ppd.pad_collate, 
+            batch_size=self.args.batch_size, 
+            sampler=sampler, 
+            num_workers=self.args.num_workers, 
+            pin_memory=True
+        )
+        
+        return train_loader
         
     def forward(self, input_ids_0, input_ids_1, padding_masks_0, padding_masks_1):  
         # input_ids_0: (B, L), input_ids_1: (B, L), padding_masks_0: (B, L), padding_masks_1: (B, L)
@@ -52,6 +68,13 @@ class PretrainModule(pl.LightningModule):
         return loss
     
     def configure_optimizers(self):
+        num_training_samples = len(self.train_dataloader())
+        num_devices = len(self.args.gpus) * self.args.num_nodes
+        q, r = divmod(num_training_samples, num_devices)
+        num_batches = q if r == 0 else q+1
+        self.args.num_training_steps = self.args.num_epochs * num_batches
+        self.args.num_warmup_steps = int(self.args.warmup_ratio * self.args.num_training_steps)
+                
         optimizer = torch.optim.AdamW(self.parameters(), lr=self.args.learning_rate)
         scheduler = {
             'scheduler': get_polynomial_decay_schedule_with_warmup(
@@ -73,24 +96,19 @@ class CustomModelCheckpoint(Callback):
     def __init__(self,
                  every_n_train_steps,
                  save_weights_only,
-                 num_steps_per_epoch,
     ):
         super().__init__()
         self.every_n_train_steps = every_n_train_steps
         self.save_weights_only = save_weights_only
-        self.num_steps_per_epoch = num_steps_per_epoch
         
     def on_batch_end(self, trainer, pl_module):
         step = pl_module.global_step
-        if self.is_save_step(step):
+        if (step+1) % self.every_n_train_steps == 0:
             self.save_step_checkpoint(step, trainer, pl_module)
-    
-    def is_save_step(self, step):
-        is_save_step = \
-            (step+1) % self.every_n_train_steps == 0 or \
-            (step+1) % self.num_steps_per_epoch == 0
-        
-        return is_save_step
+            
+    def on_epoch_end(self, trainer, pl_module):
+        step = pl_module.global_step
+        save_step_checkpoint(self, step, trainer, pl_module)
     
     def save_step_checkpoint(self, step, trainer, pl_module):
         epoch = pl_module.current_epoch

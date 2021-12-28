@@ -1,5 +1,5 @@
 from torch.utils.data import DataLoader
-from model_utils.finetune_module import *
+from finetune_module import *
 from data_utils.finetune_datasets import *
 from pytorch_lightning import Trainer, seed_everything
 from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping

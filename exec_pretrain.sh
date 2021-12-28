@@ -1,7 +1,7 @@
 python src/pretrain.py \
     --default_root_dir="./" \
     --data_dir="data" \
-    --pretrain_dir="pretrain" \
+    --pretrain_dir="pretrain_shuffled" \
     --num_epochs=1 \
     --batch_size=16 \
     --num_workers=32 \

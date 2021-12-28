@@ -1,6 +1,4 @@
-from torch.utils.data import DataLoader
-from model_utils.pretrain_module import *
-from data_utils.pretrain_datasets import *
+from pretrain_module import *
 from pytorch_lightning import Trainer, seed_everything
 from utils import convert_gpu_str_to_list
 
@@ -8,35 +6,17 @@ import argparse
 
 
 def run(args):
+    args.gpus = convert_gpu_str_to_list(args.gpus)
+    
     print(f"Loading training module for pretraining...")   
     module = PretrainModule(args)
     args = module.args
-    
-    print("Loading datasets...")
-    # For data loading
-    train_set = PretrainDataset(args)
-
-    # Dataloaders
-    input_pad_id = args.pad_id
-    ppd = PretrainPadCollate(input_pad_id=input_pad_id)
-    
-    # Reset random seed for data shuffle
-    train_loader = DataLoader(train_set, collate_fn=ppd.pad_collate, batch_size=args.batch_size, shuffle=True, num_workers=args.num_workers, pin_memory=True)
-    
-    # Calculate total training steps
-    args.gpus = convert_gpu_str_to_list(args.gpus)
-    num_devices = len(args.gpus) * args.num_nodes
-    q, r = divmod(len(train_loader), num_devices)
-    num_batches = q if r == 0 else q+1
-    args.num_training_steps = args.num_epochs * num_batches
-    args.num_warmup_steps = int(args.warmup_ratio * args.num_training_steps)
 
     print("Setting pytorch lightning callback & trainer...")
     # Model checkpoint callback
     checkpoint_callback = CustomModelCheckpoint(
         every_n_train_steps=args.save_interval,
         save_weights_only=True,
-        num_steps_per_epoch=num_batches,
     )
     
     # Trainer setting
@@ -55,10 +35,12 @@ def run(args):
         checkpoint_callback=False,
         amp_backend="apex",
         amp_level=args.amp_level,
+        replace_sampler_ddp=False,
+        profiler="advanced",
     )
     
     print("Train starts.")
-    trainer.fit(model=module, train_dataloaders=train_loader)
+    trainer.fit(model=module)
     print("Training done.")
     
     print("GOOD BYE.")

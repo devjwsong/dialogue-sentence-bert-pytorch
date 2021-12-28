@@ -1,6 +1,6 @@
 from torch import nn as nn
 from transformers import get_linear_schedule_with_warmup
-from .encoders import *
+from encoders import *
 from utils import *
 from pytorch_lightning import seed_everything
 from argparse import Namespace
