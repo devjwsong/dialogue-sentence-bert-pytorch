@@ -14,15 +14,9 @@ attr_map = {
     'sentbert-cls': ['sentence-transformers/bert-base-nli-cls-token', AutoConfig, AutoTokenizer, AutoModel, '[CLS]', '[SEP]', '[PAD]', '[UNK]', '[MASK]'],
     'sentbert-mean': ['sentence-transformers/bert-base-nli-mean-tokens', AutoConfig, AutoTokenizer, AutoModel, '[CLS]', '[SEP]', '[PAD]', '[UNK]', '[MASK]'],
     'sentbert-max': ['sentence-transformers/bert-base-nli-max-tokens', AutoConfig, AutoTokenizer, AutoModel, '[CLS]', '[SEP]', '[PAD]', '[UNK]', '[MASK]'],
-    'dialogsentbert-cls': ['bert-base-uncased', BertConfig, BertTokenizer, BertModel, '[CLS]', '[SEP]', '[PAD]', '[UNK]', '[MASK]'],
-    'dialogsentbert-mean': ['bert-base-uncased', BertConfig, BertTokenizer, BertModel, '[CLS]', '[SEP]', '[PAD]', '[UNK]', '[MASK]'],
-    'dialogsentbert-max': ['bert-base-uncased', BertConfig, BertTokenizer, BertModel, '[CLS]', '[SEP]', '[PAD]', '[UNK]', '[MASK]'],
-    'dialogsentconvbert-cls': ['convbert', BertConfig, BertTokenizer, BertModel, '[CLS]', '[SEP]', '[PAD]', '[UNK]', '[MASK]'],
-    'dialogsentconvbert-mean': ['convbert', BertConfig, BertTokenizer, BertModel, '[CLS]', '[SEP]', '[PAD]', '[UNK]', '[MASK]'],
-    'dialogsentconvbert-max': ['convbert', BertConfig, BertTokenizer, BertModel, '[CLS]', '[SEP]', '[PAD]', '[UNK]', '[MASK]'],
-    'dialogsenttodbert-cls': ['TODBERT/TOD-BERT-JNT-V1', AutoConfig, AutoTokenizer, AutoModel, '[CLS]', '[SEP]', '[PAD]', '[UNK]', '[MASK]'],
-    'dialogsenttodbert-mean': ['TODBERT/TOD-BERT-JNT-V1', AutoConfig, AutoTokenizer, AutoModel, '[CLS]', '[SEP]', '[PAD]', '[UNK]', '[MASK]'],
-    'dialogsenttodbert-max': ['TODBERT/TOD-BERT-JNT-V1', AutoConfig, AutoTokenizer, AutoModel, '[CLS]', '[SEP]', '[PAD]', '[UNK]', '[MASK]'],
+    'dialogsentbert-cls': ['dialogsentbert-cls', BertConfig, BertTokenizer, BertModel, '[CLS]', '[SEP]', '[PAD]', '[UNK]', '[MASK]'],
+    'dialogsentbert-mean': ['dialogsentbert-mean', BertConfig, BertTokenizer, BertModel, '[CLS]', '[SEP]', '[PAD]', '[UNK]', '[MASK]'],
+    'dialogsentbert-max': ['dialogsentbert-max', BertConfig, BertTokenizer, BertModel, '[CLS]', '[SEP]', '[PAD]', '[UNK]', '[MASK]'],
 }
 
 
@@ -53,6 +47,8 @@ def load_encoder(args, load_model):
     model_dir = attrs[0]
     if 'conv' in model_dir:
         model_dir = f"{args.ckpt_dir}/{model_dir.split('-')[0]}"
+    if 'dialogsent' in model_dir:
+        model_dir = f"{args.ckpt_dir}/{model_dir}"
     
     config = attrs[1].from_pretrained(model_dir)
     tokenizer = attrs[2].from_pretrained(model_dir)
@@ -60,8 +56,5 @@ def load_encoder(args, load_model):
     if load_model:
         model = attrs[3].from_pretrained(model_dir)
         args.hidden_size = model.config.hidden_size
-
-        if 'dialogsent' in args.model_name:
-            model.load_state_dict(torch.load(f"{args.ckpt_dir}/{args.model_name}/{args.ckpt_name}.pt"))
         
     return config, tokenizer, model, attrs

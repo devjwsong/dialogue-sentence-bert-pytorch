@@ -1,4 +1,4 @@
-from pretrain_module import pt_module
+from pretrain_module import PretrainModule
 
 import torch
 import argparse

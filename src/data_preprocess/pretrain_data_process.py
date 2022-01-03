@@ -42,7 +42,7 @@ def get_diff_pair(diff0, valid_idxs, keys):
     sample_list_0.append(diff0)
     diff1, valid_idxs, keys = sample_negative(valid_idxs, keys)
     sample_list_1.append(diff1)
-    labels.append(1)
+    labels.append(-1)
     lens.append(len(diff0))
     lens.append(len(diff1))
     
@@ -105,7 +105,7 @@ if __name__=="__main__":
                 idx0, idx1 = sampled_idxs[i], sampled_idxs[i+1]
                 sample_list_0.append(seqs[idx0])
                 sample_list_1.append(seqs[idx1])
-                labels.append(0)
+                labels.append(1)
                 num_same += 1
                 lens.append(len(seqs[idx0]))
                 lens.append(len(seqs[idx1]))
@@ -129,7 +129,7 @@ if __name__=="__main__":
             for i in range(0, len(extra), 2):
                 sample_list_0.append(extra[i])
                 sample_list_1.append(extra[i+1])
-                labels.append(0)
+                labels.append(1)
                 num_same += 1
                 lens.append(len(extra[i]))
                 lens.append(len(extra[i+1]))

@@ -1,6 +1,6 @@
 from torch.utils.data import DataLoader
 from finetune_module import *
-from data_utils.finetune_datasets import *
+from finetune_datasets import *
 from pytorch_lightning import Trainer, seed_everything
 from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
 from utils import convert_gpu_str_to_list
@@ -128,7 +128,6 @@ if __name__=='__main__':
     parser.add_argument('--pooling', required=True, type=str, help="Pooling method: CLS/Mean/Max")
     parser.add_argument('--gpu', type=str, default="0", help="The index of GPU to use.")
     parser.add_argument('--ckpt_dir', required=False, type=str, help="If only training from a specific checkpoint... (also convbert)")
-    parser.add_argument('--ckpt_name', required=False, type=str, help="If only training from a specific checkpoint...")
     
     args = parser.parse_args()
     
@@ -142,10 +141,10 @@ if __name__=='__main__':
     assert args.pooling in ['cls', 'mean', 'max']
     if 'sent' in args.model_name:
         assert args.model_name.split('-')[-1] == args.pooling
-    if 'conv' in args.model_name:
+    if 'conv' in args.model_name or 'dialogsent' in args.model_name:
         assert args.ckpt_dir is not None
-    if 'dialogsent' in args.model_name:
-        assert args.ckpt_dir is not None and args.ckpt_name is not None
+        
+    args.gpu = [int(args.gpu)]
     
     print("#"*50 + "Running spec" + "#"*50)
     print(args)
