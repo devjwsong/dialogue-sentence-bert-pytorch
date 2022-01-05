@@ -50,6 +50,7 @@ def load_encoder(args, load_model):
     if 'dialogsent' in model_dir:
         model_dir = f"{args.ckpt_dir}/{model_dir}"
     
+    print(f"Loading the checkpoint {model_dir}...")
     config = attrs[1].from_pretrained(model_dir)
     tokenizer = attrs[2].from_pretrained(model_dir)
     model = None
