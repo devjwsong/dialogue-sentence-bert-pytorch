@@ -51,7 +51,7 @@ if __name__=='__main__':
     parser.add_argument('--default_root_dir', type=str, default="./", help="The default directory for logs & checkpoints.")
     parser.add_argument('--shuffled_dir', type=str, default="pretrain", help="The directory which contains the shuffled pre-train data files.")
     parser.add_argument('--num_epochs', type=int, default=1, help="The number of total epochs.")
-    parser.add_argument('--batch_size', type=int, default=16, help="The batch size in one process.")
+    parser.add_argument('--batch_size', type=int, default=32, help="The batch size in one process.")
     parser.add_argument('--num_workers', type=int, default=4, help="The number of workers for data loading.")
     parser.add_argument('--learning_rate', type=float, default=2e-5, help="The starting learning rate.")
     parser.add_argument('--warmup_ratio', type=float, default=0.1, help="The warmup step ratio.")

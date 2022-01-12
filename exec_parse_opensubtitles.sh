@@ -1,4 +1,4 @@
-python src/data_utils/pretrain/parse_opensubtitles.py \
+python src/data_preprocess/parse_opensubtitles.py \
     --seed=0 \
     --raw_dir=RAW_DIR \
     --data_dir="data/opensubtitles-parsed" \

@@ -1,4 +1,4 @@
-from finetune import oos, banking77, atis, multiwoz, dstc2, sim
+import oos, banking77, atis, multiwoz, dstc2, sim
 
 import argparse
 import os

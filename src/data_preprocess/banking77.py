@@ -7,7 +7,7 @@ import csv
 
 
 def process_data(args):
-    data_dir = f"{args.data_dir}/{args.raw_dir}/banking77"
+    data_dir = f"{args.raw_dir}/banking77"
     assert os.path.isdir(data_dir), "Please check the raw data directory path."
 
     save_dir = f"{args.finetune_dir}/banking77"

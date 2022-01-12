@@ -2,7 +2,7 @@ python src/pretrain.py \
     --default_root_dir="./" \
     --shuffled_dir="data/pretrain_shuffled" \
     --num_epochs=1 \
-    --batch_size=16 \
+    --batch_size=32 \
     --num_workers=4 \
     --learning_rate=2e-5 \
     --warmup_ratio=0.1 \
@@ -10,7 +10,7 @@ python src/pretrain.py \
     --log_interval=10000 \
     --max_grad_norm=1.0 \
     --seed=0 \
-    --pooling=POOLING \
+    --pooling="cls" \
     --amp_level="O1" \
     --gpus="0" \
     --num_nodes=1

@@ -1,4 +1,4 @@
-python src/data_utils/finetune_data_process.py \
+python src/data_preprocess/finetune_data_process.py \
     --raw_dir="data/raw" \
     --finetune_dir="data/finetune" \
     --train_frac=0.8 \

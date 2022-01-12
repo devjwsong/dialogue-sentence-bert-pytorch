@@ -6,7 +6,7 @@ import pickle
 
 
 def process_data(args):
-    data_dir = f"{args.data_dir}/{args.raw_dir}/sim"
+    data_dir = f"{args.raw_dir}/sim"
     assert os.path.isdir(data_dir), "Please check the raw data directory path."
 
     save_dir = f"{args.finetune_dir}/sim"
