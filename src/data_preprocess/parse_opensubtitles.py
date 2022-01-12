@@ -75,7 +75,7 @@ if __name__=="__main__":
     parser.add_argument('--data_dir', type=str, default="data/opensubtitles-parsed", help="The parent directory for saving parsed data.")
     parser.add_argument('--bert_ckpt', type=str, default="bert-base-uncased", help="The checkpoint of the BERT to load the tokenizer.")
     parser.add_argument('--lam', type=int, default=2, help="The lambda value for the Poisson distribution.")
-    parser.add_argument('--num_trunc', type=int, default=10, help="The number of turns to truncate.")
+    parser.add_argument('--num_trunc', type=int, default=20, help="The number of turns to truncate.")
 
     args = parser.parse_args()
     

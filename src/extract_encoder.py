@@ -19,7 +19,7 @@ def extract(args):
     print(model)
     
     pooling = pt_module.args.pooling
-    output_dir = f"{ckpt_dir}/{args.ckpt_file.split('.ckpt')[0]}"
+    output_dir = f"{ckpt_dir}/dialogsentbert-{pooling}"
     
     config.save_pretrained(output_dir)
     model.save_pretrained(output_dir)

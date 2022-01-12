@@ -8,9 +8,9 @@ import natsort
 
 class PretrainDataset(Dataset):
     def __init__(self, args):
-        self.first_sample_files = glob(f"{args.data_dir}/{args.pretrain_dir}/first_samples_group*")
-        self.second_sample_files = glob(f"{args.data_dir}/{args.pretrain_dir}/second_samples_group*")
-        self.label_files = glob(f"{args.data_dir}/{args.pretrain_dir}/label_group*")
+        self.first_sample_files = glob(f"{args.shuffled_dir}/first_samples_group*")
+        self.second_sample_files = glob(f"{args.shuffled_dir}/second_samples_group*")
+        self.label_files = glob(f"{args.shuffled_dir}/label_group*")
         
         self.first_sample_files = natsort.natsorted(self.first_sample_files)
         self.second_sample_files = natsort.natsorted(self.second_sample_files)

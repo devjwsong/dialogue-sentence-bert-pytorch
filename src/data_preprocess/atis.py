@@ -5,13 +5,13 @@ import json
 import pickle
 
 
-def process_data(args, finetune_dir):
+def process_data(args):
     data_dir = f"{args.data_dir}/{args.raw_dir}/atis"
     assert os.path.isdir(data_dir), "Please check the raw data directory path."
 
-    finetune_dir = f"{finetune_dir}/atis"
-    if not os.path.isdir(finetune_dir):
-        os.makedirs(finetune_dir)
+    save_dir = f"{args.finetune_dir}/atis"
+    if not os.path.isdir(save_dir):
+        os.makedirs(save_dir)
         
     print("Parsing data contents...")
     train_utters, train_intents, intent_class_dict = parse_infos(data_dir, "atis.train.pkl")
@@ -21,13 +21,13 @@ def process_data(args, finetune_dir):
     train_utters, train_intents, valid_utters, valid_intents = split_data(train_utters, train_intents)
     
     print("Saving intent class dictionary...")
-    with open(f"{finetune_dir}/intent_{args.class_dict_name}.json", 'w') as f:
+    with open(f"{save_dir}/intent_{args.class_dict_name}.json", 'w') as f:
         json.dump(intent_class_dict, f)
     
     print("Saving data files as pickle...")
-    save_file(finetune_dir, 'train', train_utters, train_intents)
-    save_file(finetune_dir, 'valid', valid_utters, valid_intents)
-    save_file(finetune_dir, 'test', test_utters, test_intents)
+    save_file(save_dir, 'train', train_utters, train_intents)
+    save_file(save_dir, 'valid', valid_utters, valid_intents)
+    save_file(save_dir, 'test', test_utters, test_intents)
     
     print("<Data Anaysis>")
     print("Task: Intent Detection")
@@ -70,11 +70,11 @@ def parse_infos(data_dir, file):
     return utters, intents, intent_class_dict
 
 
-def save_file(finetune_dir, prefix, utters, intents):
-    with open(f"{finetune_dir}/{prefix}_utters.pickle", 'wb') as f:
+def save_file(save_dir, prefix, utters, intents):
+    with open(f"{save_dir}/{prefix}_utters.pickle", 'wb') as f:
         pickle.dump(utters, f)
 
-    with open(f"{finetune_dir}/{prefix}_intents.pickle", 'wb') as f:
+    with open(f"{save_dir}/{prefix}_intents.pickle", 'wb') as f:
         pickle.dump(intents, f)
         
 

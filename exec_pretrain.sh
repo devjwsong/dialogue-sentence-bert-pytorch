@@ -1,17 +1,16 @@
 python src/pretrain.py \
     --default_root_dir="./" \
-    --data_dir="data" \
-    --pretrain_dir="pretrain_shuffled" \
+    --shuffled_dir="data/pretrain_shuffled" \
     --num_epochs=1 \
     --batch_size=16 \
-    --num_workers=16 \
+    --num_workers=4 \
     --learning_rate=2e-5 \
     --warmup_ratio=0.1 \
     --save_interval=50000 \
     --log_interval=10000 \
     --max_grad_norm=1.0 \
     --seed=0 \
-    --pooling="cls" \
+    --pooling=POOLING \
     --amp_level="O1" \
-    --gpus="0, 1, 2, 3, 4, 5, 6, 7" \
+    --gpus="0" \
     --num_nodes=1

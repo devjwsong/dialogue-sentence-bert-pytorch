@@ -3,7 +3,6 @@ from finetune_module import *
 from finetune_datasets import *
 from pytorch_lightning import Trainer, seed_everything
 from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
-from utils import convert_gpu_str_to_list
 
 import os
 import argparse
@@ -12,17 +11,17 @@ import json
 
 def run(args):
     # For directory setting
-    args.dataset_dir = f"{args.data_dir}/{args.finetune_dir}/{args.dataset}"
+    args.dataset_dir = f"{args.finetune_dir}/{args.dataset}"
     assert os.path.isdir(args.dataset_dir)
     
-    args.cache_dir = f"{args.cache_dir}/{args.task}/{args.dataset}/{args.model_name}"
+    args.cached_dir = f"{args.cached_dir}/{args.dataset}/{args.model_name}"
     if args.task == 'action':
-        args.cache_dir = f"{args.cache_dir}/{args.max_turns}"
+        args.cached_dir = f"{args.cached_dir}/{args.max_turns}"
     
-    if not os.path.isdir(args.cache_dir):
-        os.makedirs(args.cache_dir)
+    if not os.path.isdir(args.cached_dir):
+        os.makedirs(args.cached_dir)
 
-    with open(f"{args.dataset_dir}/{args.task}_{args.class_dict_name}.json", 'r') as f:
+    with open(f"{args.dataset_dir}/{args.task}_{args.class_dict_prefix}.json", 'r') as f:
         args.class_dict = json.load(f)
     args.num_classes = len(args.class_dict)
     
@@ -79,7 +78,6 @@ def run(args):
     )
     
     # Trainer setting
-    args.gpu = convert_gpu_str_to_list(args.gpu)
     trainer = Trainer(
         accelerator="gpu",
         gpus=args.gpu,
@@ -106,17 +104,16 @@ if __name__=='__main__':
     
     parser.add_argument('--task', required=True, type=str, help="The name of the task.")
     parser.add_argument('--dataset', required=True, type=str, help="The name of the dataset.")
-    parser.add_argument('--cache_dir', type=str, default="cached", help="The directory path for pre-processed data pickles.")
-    parser.add_argument('--data_dir', type=str, default="data", help="The parent directory path for data files.")
-    parser.add_argument('--finetune_dir', type=str, default="finetune", help="The directory path to finetuning data files.")
-    parser.add_argument('--class_dict_name', type=str, default="class_dict", help="The name of class dictionary json file.")
+    parser.add_argument('--cached_dir', type=str, default="cached", help="The directory path for pre-processed data pickles.")
+    parser.add_argument('--finetune_dir', type=str, default="data/finetune", help="The directory of finetuning data files.")
+    parser.add_argument('--class_dict_prefix', type=str, default="class_dict", help="The prefix of class dictionary json file.")
     parser.add_argument('--train_prefix', type=str, default="train", help="The prefix of file name related to train set.")
     parser.add_argument('--valid_prefix', type=str, default="valid", help="The prefix of file name related to valid set.")
     parser.add_argument('--test_prefix', type=str, default="test", help="The prefix of file name related to test set.")
     parser.add_argument('--max_turns', type=int, default=1, help="The maximum number of dialogue turns.")
-    parser.add_argument('--num_epochs', type=int, default=1, help="The number of total epochs.")
+    parser.add_argument('--num_epochs', type=int, default=20, help="The number of total epochs.")
     parser.add_argument('--batch_size', type=int, default=16, help="The batch size in one process.")
-    parser.add_argument('--num_workers', type=int, default=0, help="The number of workers for data loading.")
+    parser.add_argument('--num_workers', type=int, default=4, help="The number of workers for data loading.")
     parser.add_argument('--max_encoder_len', type=int, default=512, help="The maximum length of a sequence.")
     parser.add_argument('--learning_rate', type=float, default=5e-5, help="The starting learning rate.")
     parser.add_argument('--warmup_prop', type=float, default=0.0, help="The warmup step proportion.")
@@ -135,8 +132,6 @@ if __name__=='__main__':
     assert args.model_name in [
         'bert',  'convbert', 'todbert', 'sentbert-cls', 'sentbert-mean', 'sentbert-max',
         'dialogsentbert-cls', 'dialogsentbert-mean', 'dialogsentbert-max',
-        'dialogsentconvbert-cls', 'dialogsentconvbert-mean', 'dialogsentconvbert-max',
-        'dialogsenttodbert-cls', 'dialogsenttodbert-mean', 'dialogsenttodbert-max',
     ], "You must specify a correct model name."
     assert args.pooling in ['cls', 'mean', 'max']
     if 'sent' in args.model_name:

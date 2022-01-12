@@ -9,9 +9,9 @@ import os
 
 
 def run(args):
-    first_sample_files = glob(f"{args.data_dir}/{args.pretrain_dir}/first*")
-    second_sample_files = glob(f"{args.data_dir}/{args.pretrain_dir}/second*")
-    label_files = glob(f"{args.data_dir}/{args.pretrain_dir}/label*")
+    first_sample_files = glob(f"{args.pretrain_dir}/first*")
+    second_sample_files = glob(f"{args.pretrain_dir}/second*")
+    label_files = glob(f"{args.pretrain_dir}/label*")
     
     assert len(first_sample_files) == len(second_sample_files)
     assert len(first_sample_files) == len(label_files)
@@ -53,11 +53,11 @@ def run(args):
         
         for j in range(len(target_first_sample_files)):
             first_samples, second_samples, labels = zip(*samples[j*args.group_size:(j+1)*args.group_size])
-            with open(f"{args.save_dir}/first_samples_group{cur_group}.json", 'w') as f:
+            with open(f"{args.shuffled_dir}/first_samples_group{cur_group}.json", 'w') as f:
                 ujson.dump(first_samples, f)
-            with open(f"{args.save_dir}/second_samples_group{cur_group}.json", 'w') as f:
+            with open(f"{args.shuffled_dir}/second_samples_group{cur_group}.json", 'w') as f:
                 ujson.dump(second_samples, f)
-            with open(f"{args.save_dir}/label_group{cur_group}.json", 'w') as f:
+            with open(f"{args.shuffled_dir}/label_group{cur_group}.json", 'w') as f:
                 ujson.dump(labels, f)
             cur_group += 1
 
@@ -66,15 +66,14 @@ if __name__=="__main__":
     parser = argparse.ArgumentParser()
     
     parser.add_argument('--seed', type=int, default=0, help="The random seed number.")
-    parser.add_argument('--data_dir', type=str, default="data", help="The parent directory path for data files.")
-    parser.add_argument('--pretrain_dir', type=str, default="pretrain", help="The directory which contains the pre-train data files.")
+    parser.add_argument('--pretrain_dir', type=str, default="data/pretrain", help="The directory which contains the pre-train data files.")
+    parser.add_argument('--shuffled_dir', type=str, default="data/pretrain_shuffled", help="The directory which will contain the shuffled data files.")
     parser.add_argument('--num_files', type=int, default=1, help="The number of files to be shuffled together.")
     
     args = parser.parse_args()
     
-    args.save_dir = f"{args.data_dir}/{args.pretrain_dir}_shuffled"
-    if not os.path.isdir(args.save_dir):
-        os.makedirs(args.save_dir)
+    if not os.path.isdir(args.shuffled_dir):
+        os.makedirs(args.shuffled_dir)
     
     random.seed(args.seed)
     

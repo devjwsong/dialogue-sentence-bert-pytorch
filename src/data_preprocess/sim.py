@@ -5,13 +5,13 @@ import json
 import pickle
 
 
-def process_data(args, finetune_dir):
+def process_data(args):
     data_dir = f"{args.data_dir}/{args.raw_dir}/sim"
     assert os.path.isdir(data_dir), "Please check the raw data directory path."
 
-    finetune_dir = f"{finetune_dir}/sim"
-    if not os.path.isdir(finetune_dir):
-        os.makedirs(finetune_dir)
+    save_dir = f"{args.finetune_dir}/sim"
+    if not os.path.isdir(save_dir):
+        os.makedirs(save_dir)
 
     action_class_dict = {}
     
@@ -39,10 +39,10 @@ def process_data(args, finetune_dir):
             num_test_utters = count_utters(utter_dialogues)
             prefix = data_type
 
-        save_file(finetune_dir, prefix, utter_dialogues, action_dialogues)
+        save_file(save_dir, prefix, utter_dialogues, action_dialogues)
         
     print("Saving action class dictionary...")
-    with open(f"{finetune_dir}/action_{args.class_dict_name}.json", 'w') as f:
+    with open(f"{save_dir}/action_{args.class_dict_name}.json", 'w') as f:
         json.dump(action_class_dict, f)
         
     print("<Data Anaysis>")
@@ -118,11 +118,11 @@ def find_actions(domain, acts, action_class_dict, speaker):
     return list(set(action_list)), action_class_dict
 
 
-def save_file(finetune_dir, prefix, utter_dialogues, action_dialogues):
-    with open(f"{finetune_dir}/{prefix}_utters.pickle", 'wb') as f:
+def save_file(save_dir, prefix, utter_dialogues, action_dialogues):
+    with open(f"{save_dir}/{prefix}_utters.pickle", 'wb') as f:
         pickle.dump(utter_dialogues, f)
         
-    with open(f"{finetune_dir}/{prefix}_actions.pickle", 'wb') as f:
+    with open(f"{save_dir}/{prefix}_actions.pickle", 'wb') as f:
         pickle.dump(action_dialogues, f)
         
 

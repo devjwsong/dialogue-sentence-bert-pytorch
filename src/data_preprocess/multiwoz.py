@@ -7,13 +7,13 @@ import random
 random.seed(0)
 
 
-def process_data(args, finetune_dir):
+def process_data(args):
     data_dir = f"{args.data_dir}/{args.raw_dir}/MultiWOZ2_3"
     assert os.path.isdir(data_dir), "Please check the raw data directory path."
 
-    finetune_dir = f"{finetune_dir}/multiwoz"
-    if not os.path.isdir(finetune_dir):
-        os.makedirs(finetune_dir)
+    save_dir = f"{args.finetune_dir}/multiwoz"
+    if not os.path.isdir(save_dir):
+        os.makedirs(save_dir)
 
     action_class_dict = {}
 
@@ -90,12 +90,12 @@ def process_data(args, finetune_dir):
         test_action_dialogs += [action_dialogues[idx] for idx in test_idxs]
     
     print("Now saving data...")
-    save_file(finetune_dir, args.train_prefix, train_utter_dialogs, train_action_dialogs)
-    save_file(finetune_dir, args.valid_prefix, valid_utter_dialogs, valid_action_dialogs)
-    save_file(finetune_dir, args.test_prefix, test_utter_dialogs, test_action_dialogs)
+    save_file(save_dir, args.train_prefix, train_utter_dialogs, train_action_dialogs)
+    save_file(save_dir, args.valid_prefix, valid_utter_dialogs, valid_action_dialogs)
+    save_file(save_dir, args.test_prefix, test_utter_dialogs, test_action_dialogs)
         
     print("Saving action class dictionary...")
-    with open(f"{finetune_dir}/action_{args.class_dict_name}.json", 'w') as f:
+    with open(f"{save_dir}/action_{args.class_dict_name}.json", 'w') as f:
         json.dump(action_class_dict, f)
     
     num_train_utters = count_utters(train_utter_dialogs)
@@ -141,11 +141,11 @@ def split_data(idxs, train_frac, valid_frac):
     return train_idxs, valid_idxs, test_idxs
 
 
-def save_file(finetune_dir, prefix, utter_dialogues, action_dialogues):
-    with open(f"{finetune_dir}/{prefix}_utters.pickle", 'wb') as f:
+def save_file(save_dir, prefix, utter_dialogues, action_dialogues):
+    with open(f"{save_dir}/{prefix}_utters.pickle", 'wb') as f:
         pickle.dump(utter_dialogues, f)
         
-    with open(f"{finetune_dir}/{prefix}_actions.pickle", 'wb') as f:
+    with open(f"{save_dir}/{prefix}_actions.pickle", 'wb') as f:
         pickle.dump(action_dialogues, f)
         
 

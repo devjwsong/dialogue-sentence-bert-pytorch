@@ -81,15 +81,15 @@ class IDDataset(Dataset):
             print(f"Exceed count: {exceed_count}")
             assert exceed_count == 0
             print(f"Max length: {max_len}")
-            with open(f"{args.cache_dir}/{data_prefix}_input_ids_cached.pickle", 'wb') as f:
+            with open(f"{args.cached_dir}/{data_prefix}_input_ids_cached.pickle", 'wb') as f:
                 pickle.dump(self.input_ids, f)
-            with open(f"{args.cache_dir}/{data_prefix}_labels_cached.pickle", 'wb') as f:
+            with open(f"{args.cached_dir}/{data_prefix}_labels_cached.pickle", 'wb') as f:
                 pickle.dump(self.labels, f)
         else:
             print("Loading cached data...")
-            with open(f"{args.cache_dir}/{data_prefix}_input_ids_cached.pickle", 'rb') as f:
+            with open(f"{args.cached_dir}/{data_prefix}_input_ids_cached.pickle", 'rb') as f:
                 self.input_ids = pickle.load(f)
-            with open(f"{args.cache_dir}/{data_prefix}_labels_cached.pickle", 'rb') as f:
+            with open(f"{args.cached_dir}/{data_prefix}_labels_cached.pickle", 'rb') as f:
                 self.labels = pickle.load(f)
                 
         print(f"Total {len(self.input_ids)} sequences prepared.")
@@ -140,15 +140,15 @@ class APDataset(Dataset):
             assert len(self.input_ids) == len(self.labels)
             
             print(f"Max length: {max_len}")
-            with open(f"{args.cache_dir}/{data_prefix}_input_ids_cached.pickle", 'wb') as f:
+            with open(f"{args.cached_dir}/{data_prefix}_input_ids_cached.pickle", 'wb') as f:
                 pickle.dump(self.input_ids, f)
-            with open(f"{args.cache_dir}/{data_prefix}_labels_cached.pickle", 'wb') as f:
+            with open(f"{args.cached_dir}/{data_prefix}_labels_cached.pickle", 'wb') as f:
                 pickle.dump(self.labels, f)
         else:
             print("Loading cached data...")
-            with open(f"{args.cache_dir}/{data_prefix}_input_ids_cached.pickle", 'rb') as f:
+            with open(f"{args.cached_dir}/{data_prefix}_input_ids_cached.pickle", 'rb') as f:
                 self.input_ids = pickle.load(f)
-            with open(f"{args.cache_dir}/{data_prefix}_labels_cached.pickle", 'rb') as f:
+            with open(f"{args.cached_dir}/{data_prefix}_labels_cached.pickle", 'rb') as f:
                 self.labels = pickle.load(f)
         
         print(f"Total {len(self.input_ids)} sequences prepared.")
