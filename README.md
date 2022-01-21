@@ -5,7 +5,7 @@ This modified version of the SentenceBERT[[1]](#1) is specialized for the dialog
 
 The training objective is also similar to SentBERT, which is based on the Siamese Network[[2]](#2) structure and optimized via the CosineSimilarity loss function[[3]](#3).
 
-The model is pre-trained on a large open-domain dialogue corpus called OpenSubtitles[[4]](#4) and evaluated various task-oriented dialogue tasks, which will be elaborated on below.
+The model is pre-trained on a large open-domain dialogue corpus called OpenSubtitles[[4]](#4) and evaluated various task-oriented dialogue tasks, which are elaborated in the posts I attached on below.
 
 <br/>
 
@@ -146,6 +146,8 @@ You are always welcomed to visit the posts regarding this repository as follows.
 
 ### How to run
 
+**Setting**
+
 1. Install all required packages.
 
    ```shell
@@ -154,9 +156,17 @@ You are always welcomed to visit the posts regarding this repository as follows.
 
    <br/>
 
-2. First, download the OpenSubtitles xml files from [here](https://opus.nlpl.eu/OpenSubtitles/v2018/en_sample.html). And make sure that you have the downloaded folder in `--raw_dir`.
+2. Download the OpenSubtitles xml files from [here](https://opus.nlpl.eu/OpenSubtitles/v2018/en_sample.html). And make sure that you have the downloaded folder in `--raw_dir` directory. If you do not want to pre-train the BERT, you don't have to prepare the data and skipt the pre-training section.
 
-   Then, parse the data using the parsing script.
+   <br/>
+
+3. Download the datasets for fine-tuning from [here](https://drive.google.com/drive/folders/19fVK6qA6XOPEsnIOBpwsr-KdQZh_h2wP?usp=sharing). If you will follow the default arguments, you don't need to change any name or location of each file. Just download the folder and put this into the parent directory of this repository.
+
+   <br/>
+
+**Pre-training**
+
+1. Parse the OpenSubtitles data using the parsing script.
 
    ```shell
    sh exec_parse_opensubtitles.sh
@@ -164,7 +174,7 @@ You are always welcomed to visit the posts regarding this repository as follows.
 
    <br/>
 
-3. Next, pre-process the parse files to make positive/negative samples for pre-training.
+2. Next, pre-process the parse files to make positive/negative samples for pre-training.
 
    ```shell
    sh exec_pretrain_data_process.sh
@@ -173,7 +183,7 @@ You are always welcomed to visit the posts regarding this repository as follows.
    So far, you have the following data directory structure if you follow the default argument setting.
 
    ```
-   RAW_DATA
+   RAW_DIRECTORY_FOR_OPENSUBTITLES
    data
    └--opensubtitles-parsed
        └--0.pickle
@@ -198,7 +208,7 @@ You are always welcomed to visit the posts regarding this repository as follows.
 
    <br/>
 
-4. For better and more efficient pre-training, pre-shuffle the json files.
+3. For better and more efficient pre-training, pre-shuffle the json files.
 
    ```shell
    sh exec_pre_shuffle.sh
@@ -227,7 +237,7 @@ You are always welcomed to visit the posts regarding this repository as follows.
 
    <br/>
 
-5. Pre-train the model.
+4. Pre-train the model.
 
    ```shell
    sh exec_pretrain.sh
@@ -247,10 +257,10 @@ You are always welcomed to visit the posts regarding this repository as follows.
 
    <br/>
 
-6. Extract the pre-trained checkpoint into a form supported by Huggingface's Transformers[[6]](#6).
+5. Extract the pre-trained checkpoint into a form supported by Huggingface's Transformers[[6]](#6).
 
    ```shell
-   sh exec_extrac_encoder.sh
+   sh exec_extract.sh
    ```
 
    After extracting, you will have the checkpoint folder in the same directory. For later usage, put the folder in the `--ckpt_dir` directory.
@@ -272,6 +282,58 @@ You are always welcomed to visit the posts regarding this repository as follows.
 
    <br/>
 
+**Fine-tuning**
+
+1. Parse the fine-tuning datasets.
+
+   ```shell
+   sh exec_finetune_data_process.sh
+   ```
+
+   So far, you will have the parsed files as follows.
+
+   ```
+   data
+   └--raw
+       └--atis
+       └--banking77
+       └--dstc2
+       └--MultiWOZ2_3
+       └--oos
+       └--sim
+   └--finetune
+       └--atis
+           └--train_utters.pickle
+           └--train_intents.pickle
+           └--valid_utters.pickle
+           └--valid_intents.pickle
+           └--test_utters.pickle
+           └--test_intents.pickle
+           └--class_dict.json
+       └--banking77
+       └--oos
+       └--MultiWOZ2_3
+       	  └--train_utters.pickle
+           └--train_actions.pickle
+           └--valid_utters.pickle
+           └--valid_actions.pickle
+           └--test_utters.pickle
+           └--test_actions.pickle
+           └--class_dict.json
+       └--dstc2
+       └--sim
+   ```
+
+   <br/>
+
+2. Now you can train/evaluate the pre-trained model and the baselines. In order to test the ConvBERT[[7]](#7), first you should download the checkpoint from [here](https://github.com/alexa/dialoglue). Make sure that downloaded checkpoint directory is in `--ckpt_dir` folder.
+
+   ```shell
+   sh exec_finetune.sh
+   ```
+
+   In addition, each argument is slightly different between the tasks to reproduce the results I posted. If you are interested, you can see the details, and change arguments in `exec_finetune.sh` file.
+
 <br/>
 
 ---
@@ -287,3 +349,5 @@ You are always welcomed to visit the posts regarding this repository as follows.
 <a id="5">[5]</a> SongStudio. <a href="https://songstudio.info/">https://songstudio.info</a>
 
 <a id="6">[6]</a> Huggingface's Transformers. <a href="https://huggingface.co/docs/transformers/index">https://huggingface.co/docs/transformers/index</a>
+
+<a id="7">[7]</a> Mehri, S., Eric, M., & Hakkani-Tur, D. (2020). Dialoglue: A natural language understanding benchmark for task-oriented dialogue. arXiv preprint arXiv:2009.13570. <a href="https://arxiv.org/pdf/2009.13570.pdf">https://arxiv.org/pdf/2009.13570.pdf</a>
