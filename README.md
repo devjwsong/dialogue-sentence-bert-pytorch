@@ -332,7 +332,7 @@ You are always welcomed to visit the posts regarding this repository as follows.
    sh exec_finetune.sh
    ```
 
-   In addition, each argument is slightly different between the tasks to reproduce the results I posted. If you are interested, you can see the details, and change arguments in `exec_finetune.sh` file.
+   In addition, each argument is slightly different between the tasks to reproduce the results I posted. If you are interested, you can see the details in the second post and change arguments in `exec_finetune.sh` file.
 
 <br/>
 
