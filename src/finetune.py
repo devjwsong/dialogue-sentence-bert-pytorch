@@ -104,7 +104,7 @@ if __name__=='__main__':
     
     parser.add_argument('--task', required=True, type=str, help="The name of the task.")
     parser.add_argument('--dataset', required=True, type=str, help="The name of the dataset.")
-    parser.add_argument('--cached_dir', type=str, default="cached", help="The directory path for pre-processed data pickles.")
+    parser.add_argument('--cached_dir', type=str, default="cached", help="The directory for pre-processed data pickle files after fine-tuning.")
     parser.add_argument('--finetune_dir', type=str, default="data/finetune", help="The directory of finetuning data files.")
     parser.add_argument('--class_dict_prefix', type=str, default="class_dict", help="The prefix of class dictionary json file.")
     parser.add_argument('--train_prefix', type=str, default="train", help="The prefix of file name related to train set.")
@@ -115,16 +115,16 @@ if __name__=='__main__':
     parser.add_argument('--batch_size', type=int, default=16, help="The batch size in one process.")
     parser.add_argument('--num_workers', type=int, default=4, help="The number of workers for data loading.")
     parser.add_argument('--max_encoder_len', type=int, default=512, help="The maximum length of a sequence.")
-    parser.add_argument('--learning_rate', type=float, default=5e-5, help="The starting learning rate.")
+    parser.add_argument('--learning_rate', type=float, default=5e-5, help="The initial learning rate.")
     parser.add_argument('--warmup_prop', type=float, default=0.0, help="The warmup step proportion.")
     parser.add_argument('--max_grad_norm', type=float, default=1.0, help="The max gradient for gradient clipping.")
     parser.add_argument('--sigmoid_threshold', type=float, default=0.5, help="The sigmoid threshold for action prediction task.")
     parser.add_argument('--cached', action="store_true", help="Using the cached data or not?")
     parser.add_argument('--seed', type=int, default=0, help="The seed number.")
     parser.add_argument('--model_name', required=True, type=str, help="The encoder model to test.")
-    parser.add_argument('--pooling', type=str, default="cls", help="Pooling method: CLS/Mean/Max")
+    parser.add_argument('--pooling', required=True, type=str, help="Pooling method: CLS/Mean/Max.")
     parser.add_argument('--gpu', type=str, default="0", help="The index of GPU to use.")
-    parser.add_argument('--ckpt_dir', required=False, type=str, help="If only training from a specific checkpoint... (also convbert)")
+    parser.add_argument('--ckpt_dir', required=False, type=str, help="If only training from a specific checkpoint... (also convbert & dialogsentbert)")
     
     args = parser.parse_args()
     

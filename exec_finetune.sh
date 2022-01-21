@@ -18,5 +18,5 @@ python src/finetune.py \
     --sigmoid_threshold=0.5 \
     --seed=0 \
     --model_name=MODEL_NAME \
-    --pooling="cls" \
+    --pooling=POOLING \
     --gpu="0"

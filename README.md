@@ -62,6 +62,8 @@ You are always welcomed to visit the posts regarding this repository as follows.
 | `--shuffled_dir` | `str` | The directory which will contain the shuffled data files. | `"data/pretrain-shuffled"` |
 | `--num_files`    | `int` | The directory for saving pre-train data files.            | `128`                      |
 
+<br/>
+
 **Arguements for pre-training**
 
 | Argument             | Type    | Description                                                  | Default               |
@@ -77,11 +79,66 @@ You are always welcomed to visit the posts regarding this repository as follows.
 | `--log_interval`     | `int`   | The training step interval to write logs.                    | `10000`               |
 | `--max_grad_norm`    | `float` | The max gradient for gradient clipping.                      | `1.0`                 |
 | `--seed`             | `int`   | The random seed number.                                      | `0`                   |
-| `--pooling`          | `str`   | Pooling method: CLS/Mean/Max                                 | *YOU SHOULD SPECIFY.* |
+| `--pooling`          | `str`   | Pooling method: CLS/Mean/Max.                                | *YOU SHOULD SPECIFY.* |
 | `--ckpt_dir`         | `str`   | If only training from a specific checkpoint... (also convbert) | *YOU MIGHT SPECIFY.*  |
-| `--gpus`             | `str`   | The indices of GPUs to use.                                  | `"0"`                 |
+| `--gpus`             | `str`   | The indices of GPUs to use.                                  | `"0, 1, 2, 3"`        |
 | `--amp_level`        | `str`   | The optimization level to use for 16-bit GPU precision.      | `O1`                  |
 | `--num_nodes`        | `int`   | The number of machine.                                       | `1`                   |
+
+<br/>
+
+**Arguments for extracting pre-trained checkpoint**
+
+| Argument             | Type  | Description                                   | Default               |
+| -------------------- | ----- | --------------------------------------------- | --------------------- |
+| `--default_root_dir` | `str` | The default directory for logs & checkpoints. | `"./"`                |
+| `--log_idx`          | `int` | The lightning log index.                      | *YOU SHOULD SPECIFY.* |
+| `--ckpt_file`        | `str` | The checkpoint file to extract.               | *YOU SHOULD SPECIFY.* |
+
+<br/>
+
+**Arguments for pre-processing of the raw fine-tuning data**
+
+| Argument            | Type    | Description                                                  | Default           |
+| ------------------- | ------- | ------------------------------------------------------------ | ----------------- |
+| `--raw_dir`         | `str`   | The directory path for raw data files.                       | `"data/raw"`      |
+| `--finetune_dir`    | `str`   | The directory path to processed finetune data files.         | `"data/finetune"` |
+| `--train_frac`      | `float` | The ratio of the conversations to be included in the train set. | `0.8`             |
+| `--valid_frac`      | `float` | The ratio of the conversations to be included in the valid set. | `0.1`             |
+| `--train_prefix`    | `str`   | The prefix of file name related to train set.                | `"train"`         |
+| `--valid_prefix`    | `str`   | The prefix of file name related to validation set.           | `"valid"`         |
+| `--test_prefix`     | `str`   | The prefix of file name related to test set.                 | `"test"`          |
+| `--class_dict_name` | `str`   | The name of class dictionary json file.                      | `"class_dict"`    |
+
+<br/>
+
+**Arguments for fine-tuning**
+
+| Argument              | Type           | Description                                                  | Default               |
+| --------------------- | -------------- | ------------------------------------------------------------ | --------------------- |
+| `--task`              | `str`          | The name of the task.                                        | *YOU SHOULD SPECIFY.* |
+| `--dataset`           | `str`          | The name of the dataset.                                     | *YOU SHOULD SPECIFY.* |
+| `--cached_dir`        | `str`          | The directory for pre-processed data pickle files after fine-tuning. | `"cached"`            |
+| `--finetune_dir`      | `str`          | The directory of finetuning data files.                      | `"data/finetune"`     |
+| `--class_dict_prefix` | `str`          | The prefix of class dictionary json file.                    | `"class_dict"`        |
+| `--train_prefix`      | `str`          | The prefix of file name related to train set.                | `"train"`             |
+| `--valid_prefix`      | `str`          | The prefix of file name related to validation set.           | `"valid"`             |
+| `--test_prefix`       | `str`          | The prefix of file name related to test set.                 | `"test"`              |
+| `--max_turns`         | `int`          | The maximum number of dialogue turns.                        | `1`                   |
+| `--num_epochs`        | `int`          | The number of total epochs.                                  | `20`                  |
+| `--batch_size`        | `int`          | The batch size in one process.                               | `16`                  |
+| `--num_workers`       | `int`          | The number of workers for data loading.                      | `4`                   |
+| `--max_encoder_len`   | `int`          | The maximum length of a sequence.                            | `512`                 |
+| `--learning_rate`     | `float`        | The initial learning rate.                                   | `5e-5`                |
+| `--warmup_prop`       | `float`        | The warmup step proportion.                                  | `0.0`                 |
+| `--max_grad_norm`     | `float`        | The max gradient for gradient clipping.                      | `1.0`                 |
+| `--sigmoid_threshold` | `float`        | The sigmoid threshold for action prediction task.            | `0.5`                 |
+| `--cached`            | `"store_true"` | Using the cached data or not? (if exist...)                  | *YOU MIGHT SPECIFY.*  |
+| `--seed`              | `int`          | The random seed.                                             | `0`                   |
+| `--model_name`        | `str`          | The encoder model to test.                                   | *YOU SHOULD SPECIFY.* |
+| `--pooling`           | `str`          | Pooling method: CLS/Mean/Max.                                | *YOU SHOULD SPECIFY.* |
+| `--gpu`               | `str`          | The indext of GPU to use.                                    | `"0"`                 |
+| `--ckpt_dir`          | `str`          | If only training from a specific checkpoint... (also convbert & dialogsentbert) | *YOU MIGHT SPECIFY.*  |
 
 <br/>
 

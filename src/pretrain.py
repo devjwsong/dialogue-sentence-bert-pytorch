@@ -59,7 +59,7 @@ if __name__=='__main__':
     parser.add_argument('--log_interval', type=int, default=10000, help="The training step interval to write logs.")
     parser.add_argument('--max_grad_norm', type=float, default=1.0, help="The max gradient for gradient clipping.")
     parser.add_argument('--seed', type=int, default=0, help="The random seed number.")
-    parser.add_argument('--pooling', type=str, required=True, help="Pooling method: CLS/Mean/Max")
+    parser.add_argument('--pooling', type=str, required=True, help="Pooling method: CLS/Mean/Max.")
     parser.add_argument('--ckpt_dir', required=False, type=str, help="If only training from a specific checkpoint... (also convbert)")
     parser.add_argument('--gpus', type=str, default="0, 1, 2, 3", help="The indices of GPUs to use.")
     parser.add_argument('--amp_level', type=str, default="O1", help="The optimization level to use for 16-bit GPU precision.")

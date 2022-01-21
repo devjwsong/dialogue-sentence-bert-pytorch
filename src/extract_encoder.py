@@ -31,7 +31,7 @@ if __name__=='__main__':
     
     parser.add_argument('--default_root_dir', type=str, default="./", help="The default directory for logs & checkpoints.")
     parser.add_argument('--log_idx', type=int, required=True, help="The lightning log index.")
-    parser.add_argument('--ckpt_file', type=str, required=True, help="The checkpoint file name to extract.")
+    parser.add_argument('--ckpt_file', type=str, required=True, help="The checkpoint file to extract.")
     
     args = parser.parse_args()
     

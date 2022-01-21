@@ -37,7 +37,7 @@ if __name__=='__main__':
     parser.add_argument('--train_frac', type=float, default=0.8, help="The ratio of the conversations to be included in the train set.")
     parser.add_argument('--valid_frac', type=float, default=0.1, help="The ratio of the conversations to be included in the valid set.")
     parser.add_argument('--train_prefix', type=str, default="train", help="The prefix of file name related to train set.")
-    parser.add_argument('--valid_prefix', type=str, default="valid", help="The prefix of file name related to valid set.")
+    parser.add_argument('--valid_prefix', type=str, default="valid", help="The prefix of file name related to validation set.")
     parser.add_argument('--test_prefix', type=str, default="test", help="The prefix of file name related to test set.")
     parser.add_argument('--class_dict_name', type=str, default="class_dict", help="The name of class dictionary json file.")
     
