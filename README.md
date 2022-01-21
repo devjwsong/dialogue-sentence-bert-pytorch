@@ -11,7 +11,7 @@ The model is pre-trained on a large open-domain dialogue corpus called OpenSubti
 
 ---
 
-**Implementation details**
+### Implementation details
 
 This document only specify how to run the scripts in order to pre-train and evaluate the DialogueSentenceBERT.
 
@@ -26,7 +26,7 @@ You are always welcomed to visit the posts regarding this repository as follows.
 
 ---
 
-**Arguments**
+### Arguments
 
 <br/>
 
@@ -40,4 +40,4 @@ You are always welcomed to visit the posts regarding this repository as follows.
 
 <a id="4">[4]</a> Lison, P., & Tiedemann, J. (2016). Opensubtitles2016: Extracting large parallel corpora from movie and tv subtitles. <a href="http://www.lrec-conf.org/proceedings/lrec2016/pdf/947_Paper.pdf">http://www.lrec-conf.org/proceedings/lrec2016/pdf/947_Paper.pdf</a>
 
-<a id="5">[5]</a> SongStudio. <a href="https://songstudio.info/">https://songstudio.info/</a>
+<a id="5">[5]</a> SongStudio. <a href="https://songstudio.info/">https://songstudio.info</a>
