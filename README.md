@@ -28,6 +28,61 @@ You are always welcomed to visit the posts regarding this repository as follows.
 
 ### Arguments
 
+**Arguments for parsing the OpenSubtitles raw files**
+
+| Argument      | Type  | Description                                       | Default                       |
+| ------------- | ----- | ------------------------------------------------- | ----------------------------- |
+| `--seed`      | `int` | The random seed.                                  | `0`                           |
+| `--raw_dir`   | `str` | The directory which contains the raw xml files.   | *YOU SHOULD SPECIFY.*         |
+| `--data_dir`  | `str` | The parent directory for saving parsed data.      | `"data/opensubtitles-parsed"` |
+| `--bert_ckpt` | `str` | The checkpoint of the BERT to load the tokenizer. | `"bert-base-uncased"`         |
+| `--lam`       | `int` | The lambda value for the Poisson distribution.    | `2`                           |
+| `--num_trunc` | `int` | The number of turns to truncate.                  | `20`                          |
+
+<br/>
+
+**Arguments for pre-processing of the parsed OpenSubtitles files**
+
+| Argument       | Type  | Description                                        | Default                       |
+| -------------- | ----- | -------------------------------------------------- | ----------------------------- |
+| `--seed`       | `int` | The random seed.                                   | `0`                           |
+| `--parsed_dir` | `str` | The parent directory for saving parsed data.       | `"data/opensubtitles-parsed"` |
+| `--keep_ratio` | `str` | The ratio of sampled to be kept as the same pairs. | `0.66`                        |
+| `--save_dir`   | `str` | The directory for saving pre-train data files.     | `"data/pretrain"`             |
+| `--group_size` | `int` | The maximum number of samples in each file.        | `100000`                      |
+
+<br/>
+
+**Arguments for data pre-shuffling before pre-training**
+
+| Argument         | Type  | Description                                               | Default                    |
+| ---------------- | ----- | --------------------------------------------------------- | -------------------------- |
+| `--seed`         | `int` | The random seed.                                          | `0`                        |
+| `--pretrain_dir` | `str` | The directory which contains the pre-train data files.    | `"data/pretrain"`          |
+| `--shuffled_dir` | `str` | The directory which will contain the shuffled data files. | `"data/pretrain-shuffled"` |
+| `--num_files`    | `int` | The directory for saving pre-train data files.            | `128`                      |
+
+**Arguements for pre-training**
+
+| Argument             | Type    | Description                                                  | Default               |
+| -------------------- | ------- | ------------------------------------------------------------ | --------------------- |
+| `--default_root_dir` | `str`   | The default directory for logs & checkpoints.                | `"./"`                |
+| `--shuffled_dir`     | `str`   | The directory which contains the shuffled pre-train data files." | `"pretrain-shuffled"` |
+| `--num_epochs`       | `int`   | The number of total epochs.                                  | `1`                   |
+| `--batch_size`       | `int`   | The batch size assigned to each GPU.                         | `32`                  |
+| `--num_workers`      | `int`   | The number of workers for data loading.                      | `4`                   |
+| `--learning_rate`    | `float` | The initial learning rate.                                   | `2e-5`                |
+| `--warmup_ratio`     | `float` | The warmup step ratio.                                       | `0.1`                 |
+| `--save_interval`    | `int`   | The training step interval to save checkpoints.              | `50000`               |
+| `--log_interval`     | `int`   | The training step interval to write logs.                    | `10000`               |
+| `--max_grad_norm`    | `float` | The max gradient for gradient clipping.                      | `1.0`                 |
+| `--seed`             | `int`   | The random seed number.                                      | `0`                   |
+| `--pooling`          | `str`   | Pooling method: CLS/Mean/Max                                 | *YOU SHOULD SPECIFY.* |
+| `--ckpt_dir`         | `str`   | If only training from a specific checkpoint... (also convbert) | *YOU MIGHT SPECIFY.*  |
+| `--gpus`             | `str`   | The indices of GPUs to use.                                  | `"0"`                 |
+| `--amp_level`        | `str`   | The optimization level to use for 16-bit GPU precision.      | `O1`                  |
+| `--num_nodes`        | `int`   | The number of machine.                                       | `1`                   |
+
 <br/>
 
 ---

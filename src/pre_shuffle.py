@@ -67,8 +67,8 @@ if __name__=="__main__":
     
     parser.add_argument('--seed', type=int, default=0, help="The random seed number.")
     parser.add_argument('--pretrain_dir', type=str, default="data/pretrain", help="The directory which contains the pre-train data files.")
-    parser.add_argument('--shuffled_dir', type=str, default="data/pretrain_shuffled", help="The directory which will contain the shuffled data files.")
-    parser.add_argument('--num_files', type=int, default=1, help="The number of files to be shuffled together.")
+    parser.add_argument('--shuffled_dir', type=str, default="data/pretrain-shuffled", help="The directory which will contain the shuffled data files.")
+    parser.add_argument('--num_files', type=int, default=128, help="The number of files to be shuffled together.")
     
     args = parser.parse_args()
     

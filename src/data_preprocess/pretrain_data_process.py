@@ -2,9 +2,10 @@ from tqdm import tqdm
 from glob import glob
 
 import argparse
-import json
+import ujson
 import random
 import numpy as np
+import pickle
 import os
 
 
@@ -13,19 +14,19 @@ def save_files(args, sample_list_0, sample_list_1, labels, cur_group):
     assert len(sample_list_0) == len(labels)
     
     with open(f"{args.save_dir}/sample_list_0_group_{cur_group}.pkl", 'w') as f:
-        json.dump(sample_list_0, f)
+        ujson.dump(sample_list_0, f)
     with open(f"{args.save_dir}/sample_list_1_group_{cur_group}.pkl", 'w') as f:
-        json.dump(sample_list_1, f)
+        ujson.dump(sample_list_1, f)
     with open(f"{args.save_dir}/labels_group_{cur_group}.pkl", 'w') as f:
-        json.dump(labels, f)
+        ujson.dump(labels, f)
 
         
 def sample_negative(valid_idxs, keys):
     key_idxs = list(range(len(keys)))
     key_idx = random.sample(key_idxs, 1)[0]
     sampled_file = keys[key_idx]
-    with open(sampled_file, 'rb) as f:
-        sampled = json.load(f)
+    with open(sampled_file, 'rb') as f:
+        sampled = pickle.load(f)
         
     negative = sampled[valid_idxs[sampled_file]]
     valid_idxs[sampled_file] += 1
@@ -55,7 +56,7 @@ if __name__=="__main__":
     parser.add_argument('--seed', type=int, default=0, help="The random seed.")
     parser.add_argument('--parsed_dir', type=str, default="data/opensubtitles-parsed", help="The parent directory for saving parsed data.")
     parser.add_argument('--keep_ratio', type=float, default="0.66", help="The ratio of sampled to be kept as the same pairs.")
-    parser.add_argument('--save_dir', type=str, default="data/pretrain", help="The directory for pre-train data files.")
+    parser.add_argument('--save_dir', type=str, default="data/pretrain", help="The directory for saving pre-train data files.")
     parser.add_argument('--group_size', type=int, default=100000, help="The maximum number of samples in each file.")
 
     args = parser.parse_args()
@@ -74,8 +75,8 @@ if __name__=="__main__":
     lens, num_same, num_diff = [], 0, 0
     
     for file in tqdm(file_list):
-        with open(file, 'r') as f:
-            seqs = json.load(f)
+        with open(file, 'rb') as f:
+            seqs = pickle.load(f)
         
         if file not in valid_idxs:
             continue

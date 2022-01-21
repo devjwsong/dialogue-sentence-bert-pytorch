@@ -1,6 +1,6 @@
 python src/pretrain.py \
     --default_root_dir="./" \
-    --shuffled_dir="data/pretrain_shuffled" \
+    --shuffled_dir="data/pretrain-shuffled" \
     --num_epochs=1 \
     --batch_size=32 \
     --num_workers=4 \
@@ -12,5 +12,5 @@ python src/pretrain.py \
     --seed=0 \
     --pooling="cls" \
     --amp_level="O1" \
-    --gpus="0" \
+    --gpus="0, 1, 2, 3" \
     --num_nodes=1

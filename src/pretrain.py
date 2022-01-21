@@ -49,11 +49,11 @@ if __name__=='__main__':
     parser = argparse.ArgumentParser()
     
     parser.add_argument('--default_root_dir', type=str, default="./", help="The default directory for logs & checkpoints.")
-    parser.add_argument('--shuffled_dir', type=str, default="pretrain", help="The directory which contains the shuffled pre-train data files.")
+    parser.add_argument('--shuffled_dir', type=str, default="pretrain-shuffled", help="The directory which contains the shuffled pre-train data files.")
     parser.add_argument('--num_epochs', type=int, default=1, help="The number of total epochs.")
-    parser.add_argument('--batch_size', type=int, default=32, help="The batch size in one process.")
+    parser.add_argument('--batch_size', type=int, default=32, help="The batch size assigned to each GPU.")
     parser.add_argument('--num_workers', type=int, default=4, help="The number of workers for data loading.")
-    parser.add_argument('--learning_rate', type=float, default=2e-5, help="The starting learning rate.")
+    parser.add_argument('--learning_rate', type=float, default=2e-5, help="The initial learning rate.")
     parser.add_argument('--warmup_ratio', type=float, default=0.1, help="The warmup step ratio.")
     parser.add_argument('--save_interval', type=int, default=50000, help="The training step interval to save checkpoints.")
     parser.add_argument('--log_interval', type=int, default=10000, help="The training step interval to write logs.")
@@ -61,7 +61,7 @@ if __name__=='__main__':
     parser.add_argument('--seed', type=int, default=0, help="The random seed number.")
     parser.add_argument('--pooling', type=str, required=True, help="Pooling method: CLS/Mean/Max")
     parser.add_argument('--ckpt_dir', required=False, type=str, help="If only training from a specific checkpoint... (also convbert)")
-    parser.add_argument('--gpus', type=str, default="0", help="The indices of GPUs to use.")
+    parser.add_argument('--gpus', type=str, default="0, 1, 2, 3", help="The indices of GPUs to use.")
     parser.add_argument('--amp_level', type=str, default="O1", help="The optimization level to use for 16-bit GPU precision.")
     parser.add_argument('--num_nodes', type=int, default=1, help="The number of machine.")
     
