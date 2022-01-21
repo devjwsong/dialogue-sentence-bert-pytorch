@@ -144,6 +144,138 @@ You are always welcomed to visit the posts regarding this repository as follows.
 
 ---
 
+### How to run
+
+1. Install all required packages.
+
+   ```shell
+   pip install -r requirements.txt
+   ```
+
+   <br/>
+
+2. First, download the OpenSubtitles xml files from [here](https://opus.nlpl.eu/OpenSubtitles/v2018/en_sample.html). And make sure that you have the downloaded folder in `--raw_dir`.
+
+   Then, parse the data using the parsing script.
+
+   ```shell
+   sh exec_parse_opensubtitles.sh
+   ```
+
+   <br/>
+
+3. Next, pre-process the parse files to make positive/negative samples for pre-training.
+
+   ```shell
+   sh exec_pretrain_data_process.sh
+   ```
+
+   So far, you have the following data directory structure if you follow the default argument setting.
+
+   ```
+   RAW_DATA
+   data
+   └--opensubtitles-parsed
+       └--0.pickle
+       └--1.pickle
+       └--...
+       └--(N-2).pickle
+       └--(N-1).pickle
+   └--pretrain
+       └--sample_list_0_group_0.json
+       └--sample_list_0_group_1.json
+       └--...
+       └--sample_list_0_group_(G-1).json
+       └--sample_list_1_group_0.json
+       └--sample_list_1_group_1.json
+       └--...
+       └--sample_list_1_group_(G-1).json
+       └--labels_group_0.json
+       └--labels_group_1.json
+       └--...
+       └--labels_group_(G-1).json
+   ```
+
+   <br/>
+
+4. For better and more efficient pre-training, pre-shuffle the json files.
+
+   ```shell
+   sh exec_pre_shuffle.sh
+   ```
+
+   You will have the pre-shuffled files.
+
+   ```
+   data
+   └--opensubtitles-parsed
+   └--pretrain
+   └--pretrain-shuffled
+       └--sample_list_0_group_0.json
+       └--sample_list_0_group_1.json
+       └--...
+       └--sample_list_0_group_(G-1).json
+       └--sample_list_1_group_0.json
+       └--sample_list_1_group_1.json
+       └--...
+       └--sample_list_1_group_(G-1).json
+       └--labels_group_0.json
+       └--labels_group_1.json
+       └--...
+       └--labels_group_(G-1).json
+   ```
+
+   <br/>
+
+5. Pre-train the model.
+
+   ```shell
+   sh exec_pretrain.sh
+   ```
+
+   After finishing the training, you will have the pre-trained checkpoint and the log files like below.
+
+   ```
+   data
+   lightning_logs
+   └--version_(LOG_IDX)
+       └--checkpoints
+           └--dialogue_sentbert_POOLING_epoch=EPOCH_step=STEP_train_loss=LOSS.ckpt
+       └--hparams.yaml
+       └--TENSORBOARD_EVENT_FILE
+   ```
+
+   <br/>
+
+6. Extract the pre-trained checkpoint into a form supported by Huggingface's Transformers[[6]](#6).
+
+   ```shell
+   sh exec_extrac_encoder.sh
+   ```
+
+   After extracting, you will have the checkpoint folder in the same directory. For later usage, put the folder in the `--ckpt_dir` directory.
+
+   ```
+   lightning_logs
+   └--version_(LOG_IDX)
+       └--checkpoints
+           └--dialogue_sentbert_POOLING_epoch=EPOCH_step=STEP_train_loss=LOSS.ckpt
+       └--hparams.yaml
+       └--TENSORBOARD_EVENT_FILE
+   saved_models
+   └--dialogsentbert-POOLING
+      └--pytorch_model.bin
+      └--tokenizer.json
+      └--vocab.txt
+      └--...
+   ```
+
+   <br/>
+
+<br/>
+
+---
+
 <a id="1">[1]</a> Reimers, N., & Gurevych, I. (2019). Sentence-bert: Sentence embeddings using siamese bert-networks. arXiv preprint arXiv:1908.10084. <a href="https://arxiv.org/pdf/1908.10084.pdf">https://arxiv.org/pdf/1908.10084.pdf</a>
 
 <a id="2">[2]</a> Koch, G., Zemel, R., & Salakhutdinov, R. (2015, July). Siamese neural networks for one-shot image recognition. In ICML deep learning workshop (Vol. 2). <a href="https://www.cs.cmu.edu/~rsalakhu/papers/oneshot1.pdf">https://www.cs.cmu.edu/~rsalakhu/papers/oneshot1.pdf</a>
@@ -153,3 +285,5 @@ You are always welcomed to visit the posts regarding this repository as follows.
 <a id="4">[4]</a> Lison, P., & Tiedemann, J. (2016). Opensubtitles2016: Extracting large parallel corpora from movie and tv subtitles. <a href="http://www.lrec-conf.org/proceedings/lrec2016/pdf/947_Paper.pdf">http://www.lrec-conf.org/proceedings/lrec2016/pdf/947_Paper.pdf</a>
 
 <a id="5">[5]</a> SongStudio. <a href="https://songstudio.info/">https://songstudio.info</a>
+
+<a id="6">[6]</a> Huggingface's Transformers. <a href="https://huggingface.co/docs/transformers/index">https://huggingface.co/docs/transformers/index</a>

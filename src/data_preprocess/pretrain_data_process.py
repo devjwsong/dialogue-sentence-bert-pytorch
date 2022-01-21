@@ -13,11 +13,11 @@ def save_files(args, sample_list_0, sample_list_1, labels, cur_group):
     assert len(sample_list_0) == len(sample_list_1)
     assert len(sample_list_0) == len(labels)
     
-    with open(f"{args.save_dir}/sample_list_0_group_{cur_group}.pkl", 'w') as f:
+    with open(f"{args.save_dir}/sample_list_0_group_{cur_group}.json", 'w') as f:
         ujson.dump(sample_list_0, f)
-    with open(f"{args.save_dir}/sample_list_1_group_{cur_group}.pkl", 'w') as f:
+    with open(f"{args.save_dir}/sample_list_1_group_{cur_group}.json", 'w') as f:
         ujson.dump(sample_list_1, f)
-    with open(f"{args.save_dir}/labels_group_{cur_group}.pkl", 'w') as f:
+    with open(f"{args.save_dir}/labels_group_{cur_group}.json", 'w') as f:
         ujson.dump(labels, f)
 
         
